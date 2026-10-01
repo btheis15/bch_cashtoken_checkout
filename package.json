@@ -1,0 +1,23 @@
+{
+  "name": "bch-cashtoken-checkout",
+  "version": "0.1.0",
+  "description": "Accept Bitcoin Cash on your own website, straight into your own wallet (zero-conf with double-spend proofs), with CashTokens coupons.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/checkout.js",
+    "./bch": "./src/bch.js",
+    "./memory-store": "./src/memory-store.js"
+  },
+  "files": ["src", "examples", "docs"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "example": "node examples/server.mjs"
+  },
+  "dependencies": {
+    "@bitauth/libauth": "3.0.0",
+    "@electrum-cash/network": "4.4.8"
+  },
+  "keywords": ["bitcoin-cash", "bch", "cashtokens", "checkout", "zero-conf", "dsproof", "coupons", "fulcrum", "electrum"]
+}
