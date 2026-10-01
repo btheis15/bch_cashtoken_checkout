@@ -1,0 +1,39 @@
+/* Styles for BchPay.tsx. Change the variables to match your site. */
+.bchpay {
+  --bchpay-ink: #1f1a17;
+  --bchpay-muted: #6b625b;
+  --bchpay-line: #e4ddd3;
+  --bchpay-soft: #f5f1ea;
+  --bchpay-ok: #1c5a57;
+  --bchpay-warn: #e2a21b;
+  --bchpay-bad: #a3321f;
+  color: var(--bchpay-ink);
+  display: grid;
+  gap: 1.25rem;
+  max-width: 42rem;
+}
+.bchpay-card { border: 1px solid var(--bchpay-ink); border-radius: 1rem; overflow: hidden; }
+.bchpay-pad { padding: 1.25rem; }
+.bchpay-grid { display: grid; gap: 1.5rem; padding: 1.25rem; }
+@media (min-width: 640px) { .bchpay-grid { grid-template-columns: auto 1fr; } }
+.bchpay-qr { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.bchpay-qr svg { border: 1px solid var(--bchpay-line); border-radius: 0.75rem; padding: 0.5rem; background: #fff; }
+.bchpay-label { margin: 1rem 0 0.25rem; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--bchpay-muted); }
+.bchpay-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.bchpay-amount { margin: 0; font-size: 1.9rem; font-variant-numeric: tabular-nums; }
+.bchpay-address { min-width: 0; word-break: break-all; font-size: 0.9rem; line-height: 1.5; }
+.bchpay-muted { margin: 0.25rem 0 0; font-size: 0.875rem; color: var(--bchpay-muted); }
+.bchpay-button { display: block; width: 100%; margin-top: 1.25rem; padding: 0.8rem 1.2rem; border: 1px solid var(--bchpay-ink); border-radius: 999px; background: var(--bchpay-ink); color: #fff; text-align: center; text-decoration: none; font: inherit; cursor: pointer; }
+.bchpay-secondary { background: transparent; color: var(--bchpay-ink); width: auto; display: inline-block; }
+.bchpay-copy { flex-shrink: 0; padding: 0.35rem 0.75rem; border: 1px solid var(--bchpay-line); border-radius: 999px; background: #fff; font: inherit; font-size: 0.875rem; cursor: pointer; }
+.bchpay-status { display: flex; align-items: center; gap: 0.6rem; padding: 1rem 1.25rem; border-top: 1px solid var(--bchpay-line); background: var(--bchpay-soft); }
+.bchpay-dot { width: 0.75rem; height: 0.75rem; flex-shrink: 0; border-radius: 50%; background: var(--bchpay-ok); animation: bchpay-pulse 1.4s ease-in-out infinite; }
+@keyframes bchpay-pulse { 50% { opacity: 0.35; } }
+.bchpay-ok { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: 0; padding: 1rem 1.25rem; border: 1px solid var(--bchpay-ok); border-radius: 0.75rem; }
+.bchpay-warn { margin: 0 0 1rem; padding: 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--bchpay-warn) 15%, transparent); }
+.bchpay-note { margin: 0; padding: 0.75rem; border: 1px dashed var(--bchpay-warn); border-radius: 0.5rem; background: var(--bchpay-soft); font-size: 0.875rem; }
+.bchpay-error { margin: 1rem 0 0; color: var(--bchpay-bad); }
+.bchpay-coupon { padding: 1.25rem; border: 1px dashed var(--bchpay-warn); border-radius: 1rem; background: var(--bchpay-soft); }
+.bchpay-coupon.bchpay-grid { padding: 1.25rem; }
+.bchpay-help { padding: 0.75rem 1rem; border: 1px solid var(--bchpay-line); border-radius: 0.75rem; }
+.bchpay-help summary { cursor: pointer; font-weight: 600; }
