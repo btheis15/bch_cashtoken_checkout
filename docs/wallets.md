@@ -40,5 +40,19 @@ installed wallet: Selene registers it on iOS and Android.
 ## Wallets shoppers can pay with
 
 Any Bitcoin Cash wallet: Selene, Paytaca, Cashonize, Electron Cash, Exodus and
-others. For coupons, the wallet must hold CashTokens: Selene, Paytaca,
-Cashonize and Electron Cash do.
+others. For coupons and rewards, the wallet must hold CashTokens: Selene,
+Paytaca, Cashonize, Zapit and Electron Cash do.
+
+**Connect wallet** (BCH WalletConnect, [docs/wallet-connect.md](wallet-connect.md)):
+Cashonize (web and app), Paytaca and Zapit. They connect by scanning a `wc:`
+QR code, or by opening the link on the same phone. Cashonize on the web takes
+it as `https://cashonize.com/?uri=<wc link>`.
+
+## The hot wallet
+
+The small wallet for rewards and minting has an ordinary private key (WIF)
+from `npm run new-wallet`. To see or move what's in it yourself, import the
+key into Electron Cash (File → New/Restore → Import Bitcoin Cash addresses or
+private keys) or Cashonize. Don't spend its token's identity output by hand:
+that's the 1000-satoshi output 0 of the genesis, or of the last update
+([docs/token.md](token.md)).

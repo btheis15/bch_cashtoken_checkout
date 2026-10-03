@@ -1,23 +1,48 @@
 {
   "name": "bch-cashtoken-checkout",
-  "version": "0.1.0",
-  "description": "Accept Bitcoin Cash on your own website, straight into your own wallet (zero-conf with double-spend proofs), with CashTokens coupons.",
+  "version": "0.2.0",
+  "description": "Accept Bitcoin Cash on your own website, straight into your own wallet (zero-conf with double-spend proofs): CashTokens coupons, Connect wallet (WalletConnect), rewards in your own token, minting it with BCMR metadata, and an animated payment screen.",
   "type": "module",
   "license": "MIT",
   "exports": {
     ".": "./src/checkout.js",
     "./bch": "./src/bch.js",
-    "./memory-store": "./src/memory-store.js"
+    "./tokens": "./src/tokens.js",
+    "./hot-wallet": "./src/hot-wallet.js",
+    "./token": "./src/token.js",
+    "./memory-store": "./src/memory-store.js",
+    "./file-store": "./src/file-store.js"
   },
-  "files": ["src", "examples", "docs"],
-  "engines": { "node": ">=22" },
+  "files": [
+    "src",
+    "examples",
+    "docs"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "example": "node examples/server.mjs"
+    "example": "node examples/server.mjs",
+    "new-wallet": "node examples/new-wallet.mjs"
   },
   "dependencies": {
     "@bitauth/libauth": "3.0.0",
     "@electrum-cash/network": "4.4.8"
   },
-  "keywords": ["bitcoin-cash", "bch", "cashtokens", "checkout", "zero-conf", "dsproof", "coupons", "fulcrum", "electrum"]
+  "keywords": [
+    "bitcoin-cash",
+    "bch",
+    "cashtokens",
+    "checkout",
+    "zero-conf",
+    "dsproof",
+    "coupons",
+    "rewards",
+    "walletconnect",
+    "bcmr",
+    "mint",
+    "fulcrum",
+    "electrum"
+  ]
 }

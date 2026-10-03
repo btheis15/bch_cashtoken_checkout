@@ -4,7 +4,20 @@
  * libauth, so the checkout decodes them exactly as it would on mainnet.
  */
 import { randomBytes } from "node:crypto";
-import { binToHex, cashAddressToLockingBytecode, encodeTransaction, hexToBin, sha256 } from "@bitauth/libauth";
+import {
+  binToHex,
+  cashAddressToLockingBytecode,
+  createVirtualMachineBCH,
+  decodeTransaction,
+  encodeCashAddress,
+  encodeLockingBytecodeP2pkh,
+  encodeTransaction,
+  generateSigningSerializationBCH,
+  hash160,
+  hexToBin,
+  secp256k1,
+  sha256,
+} from "@bitauth/libauth";
 
 const hex = (n) => randomBytes(n).toString("hex");
 const jsonRes = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -14,7 +27,7 @@ const jsonRes = (status, body) => new Response(JSON.stringify(body), { status, h
  * (BCH, or a CashToken) and tells the address's watchers, as Fulcrum would.
  */
 export function createFakeBchChain() {
-  const s = { tip: 900_000, txs: new Map(), byScript: new Map(), listeners: new Set(), watched: new Set(), proofs: new Set(), down: false, calls: [] };
+  const s = { tip: 900_000, txs: new Map(), byScript: new Map(), coins: new Map(), listeners: new Set(), watched: new Set(), proofs: new Set(), down: false, calls: [], broadcasts: [], rejectBroadcast: null };
   const scripthashOf = (lb) => binToHex(sha256.hash(lb).reverse());
   const up = (what) => {
     s.calls.push(what);
@@ -62,11 +75,50 @@ export function createFakeBchChain() {
     s.txs.delete(txid);
     tell(t.sh);
   }
+  /** Coins in a wallet (what listunspent shows for the address). */
+  function fund(address, { sats = 0, token = null } = {}) {
+    const decoded = cashAddressToLockingBytecode(address);
+    const sh = scripthashOf(decoded.bytecode);
+    const coin = { txid: hex(32), vout: 0, sats, height: s.tip - 3, token: token ? { category: token.category, amount: String(token.amount), nft: token.nft ?? null } : null };
+    s.coins.set(sh, [...(s.coins.get(sh) ?? []), coin]);
+    return coin;
+  }
+  /** A signed transaction reaches the mempool: what it spends is gone, what it pays shows up (and is told). */
+  function accept(hexTx) {
+    const tx = decodeTransaction(hexToBin(hexTx));
+    if (typeof tx === "string") throw new Error(tx);
+    const txid = binToHex(sha256.hash(sha256.hash(hexToBin(hexTx))).reverse());
+    if (s.txs.has(txid)) throw new Error("txn-already-known");
+    for (const i of tx.inputs) for (const [sh, list] of s.coins) s.coins.set(sh, list.filter((c) => !(c.txid === binToHex(i.outpointTransactionHash) && c.vout === i.outpointIndex)));
+    const told = new Set();
+    tx.outputs.forEach((o, vout) => {
+      const sh = scripthashOf(o.lockingBytecode);
+      if (!told.has(sh)) {
+        s.byScript.set(sh, [...(s.byScript.get(sh) ?? []), txid]);
+        told.add(sh);
+      }
+      s.coins.set(sh, [...(s.coins.get(sh) ?? []), { txid, vout, sats: Number(o.valueSatoshis), height: 0, token: o.token ? { category: binToHex(o.token.category), amount: String(o.token.amount), nft: null } : null }]);
+    });
+    s.txs.set(txid, { hex: hexTx, height: 0, sh: [...told][0] });
+    for (const sh of told) tell(sh);
+    return txid;
+  }
   return {
     state: s,
     pay,
+    fund,
     confirm,
     drop,
+    async utxos(sh) {
+      up(`utxos:${sh}`);
+      return (s.coins.get(sh) ?? []).map((c) => ({ ...c }));
+    },
+    async broadcast(hexTx) {
+      up("broadcast");
+      if (s.rejectBroadcast) throw new Error(s.rejectBroadcast);
+      s.broadcasts.push(hexTx);
+      return accept(hexTx);
+    },
     proof: (txid) => s.proofs.add(txid),
     // The interface createBchCheckout uses (as src/bch.js createBchChain).
     server: () => "fake.fulcrum",
@@ -118,3 +170,37 @@ export function createFakeBchPrices({ usd = 400 } = {}) {
   };
 }
 
+/**
+ * A shopper's wallet as BCH WalletConnect wallets (Cashonize, Paytaca) behave: its address, and signing a
+ * bch_signTransaction request (inputs with empty unlocking bytecode are its own) with a Schnorr signature.
+ * verify() runs the signed transaction through the BCH virtual machine, so a payment the network would
+ * refuse (a burned token, a bad signature, too little fee) fails the test.
+ */
+export function createFakeWallet(seed = 7) {
+  const priv = sha256.hash(new Uint8Array([seed]));
+  const pub = secp256k1.derivePublicKeyCompressed(priv);
+  const pkh = hash160(pub);
+  const lockingBytecode = encodeLockingBytecodeP2pkh(pkh);
+  const address = encodeCashAddress({ prefix: "bitcoincash", type: "p2pkh", payload: pkh }).address;
+  const revive = (json) =>
+    JSON.parse(JSON.stringify(json), (_k, v) => {
+      if (typeof v !== "string") return v;
+      const big = /^<bigint: (\d+)n>$/.exec(v);
+      if (big) return BigInt(big[1]);
+      const bytes = /^<Uint8Array: 0x([0-9a-f]*)>$/.exec(v);
+      return bytes ? hexToBin(bytes[1]) : v;
+    });
+  function sign(request) {
+    const { transaction, sourceOutputs } = revive(request);
+    const SIGHASH = 0x41; // ALL | FORKID (with the source outputs' tokens, as BCH has since 2023)
+    transaction.inputs.forEach((input, i) => {
+      if (input.unlockingBytecode.length) return;
+      const serialization = generateSigningSerializationBCH({ inputIndex: i, sourceOutputs, transaction }, { coveredBytecode: sourceOutputs[i].lockingBytecode, signingSerializationType: new Uint8Array([SIGHASH]) });
+      const sig = secp256k1.signMessageHashSchnorr(priv, sha256.hash(sha256.hash(serialization)));
+      input.unlockingBytecode = new Uint8Array([65, ...sig, SIGHASH, 33, ...pub]);
+    });
+    return { transaction, sourceOutputs, hex: binToHex(encodeTransaction(transaction)) };
+  }
+  const verify = ({ transaction, sourceOutputs }) => createVirtualMachineBCH().verify({ sourceOutputs, transaction });
+  return { address, lockingBytecode: binToHex(lockingBytecode), sign, verify, revive };
+}

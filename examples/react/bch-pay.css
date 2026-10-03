@@ -1,39 +1,1499 @@
-/* Styles for BchPay.tsx. Change the variables to match your site. */
+/*
+ * Styles for the payment screen (BchPay.tsx, PaySheet.tsx, BchRewardCard.tsx, parts.tsx).
+ * Plain CSS, every class prefixed bchpay-. Re-theme it by overriding the variables in your own stylesheet
+ * (after this one), or with <BchPay style={{ "--bchpay-accent": "#b8873a" }} />:
+ *
+ *   .bchpay { --bchpay-accent: #b8873a; --bchpay-ink: #233142; --bchpay-font-display: Georgia, serif; }
+ *
+ * Everything moves: the sheet slides up, the QR code ripples in, digits roll, the price hold runs down,
+ * the payment bursts in. All of it stops for people who ask for reduced motion.
+ */
+/* The defaults, on the outermost .bchpay only: the pay sheet (a .bchpay inside the screen) takes the screen's colors. */
+:where(.bchpay:not(.bchpay .bchpay)) {
+  /* Surfaces and text */
+  --bchpay-bg: #ffffff;
+  --bchpay-soft: #f3f5f7;
+  --bchpay-line: #e2e6ea;
+  --bchpay-ink: #17212b;
+  --bchpay-muted: #5f6b78;
+  --bchpay-on-ink: #ffffff;
+  /* Accents: the main one (the price hold, rings, sliders) defaults to Bitcoin Cash green; a second for highlights */
+  --bchpay-accent: #0ac18e;
+  --bchpay-accent-light: #8fe6cb;
+  --bchpay-accent-2: #6a5acd;
+  /* Meaning */
+  --bchpay-ok: #0b8a67;
+  --bchpay-warn: #e8a33d;
+  --bchpay-bad: #c2412d;
+  --bchpay-link: #1f5f99;
+  /* The QR code */
+  --bchpay-qr-bg: var(--bchpay-bg);
+  --bchpay-qr-dots: var(--bchpay-ink);
+  --bchpay-qr-marker: var(--bchpay-ink);
+  --bchpay-qr-eye: var(--bchpay-accent);
+  --bchpay-qr-ring: var(--bchpay-accent);
+  /* Type, shape, motion */
+  --bchpay-font: inherit;
+  --bchpay-font-display: inherit;
+  --bchpay-radius: 1rem;
+  --bchpay-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --bchpay-shadow: 23 33 43;
+}
 .bchpay {
-  --bchpay-ink: #1f1a17;
-  --bchpay-muted: #6b625b;
-  --bchpay-line: #e4ddd3;
-  --bchpay-soft: #f5f1ea;
-  --bchpay-ok: #1c5a57;
-  --bchpay-warn: #e2a21b;
-  --bchpay-bad: #a3321f;
   color: var(--bchpay-ink);
+  font-family: var(--bchpay-font);
+  -webkit-font-smoothing: antialiased;
+}
+:where(.bchpay) *,
+:where(.bchpay) *::before,
+:where(.bchpay) *::after {
+  box-sizing: border-box;
+}
+:where(.bchpay) :is(p, dl, dd, ul) {
+  margin: 0;
+}
+:where(.bchpay) ul {
+  padding: 0;
+  list-style: none;
+}
+:where(.bchpay) button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+:where(.bchpay) button:disabled {
+  cursor: default;
+}
+:where(.bchpay) a {
+  color: inherit;
+}
+:where(.bchpay) img {
+  display: block;
+  max-width: 100%;
+}
+.bchpay-screen {
   display: grid;
   gap: 1.25rem;
-  max-width: 42rem;
+  max-width: 40rem;
 }
-.bchpay-card { border: 1px solid var(--bchpay-ink); border-radius: 1rem; overflow: hidden; }
-.bchpay-pad { padding: 1.25rem; }
-.bchpay-grid { display: grid; gap: 1.5rem; padding: 1.25rem; }
-@media (min-width: 640px) { .bchpay-grid { grid-template-columns: auto 1fr; } }
-.bchpay-qr { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
-.bchpay-qr svg { border: 1px solid var(--bchpay-line); border-radius: 0.75rem; padding: 0.5rem; background: #fff; }
-.bchpay-label { margin: 1rem 0 0.25rem; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--bchpay-muted); }
-.bchpay-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
-.bchpay-amount { margin: 0; font-size: 1.9rem; font-variant-numeric: tabular-nums; }
-.bchpay-address { min-width: 0; word-break: break-all; font-size: 0.9rem; line-height: 1.5; }
-.bchpay-muted { margin: 0.25rem 0 0; font-size: 0.875rem; color: var(--bchpay-muted); }
-.bchpay-button { display: block; width: 100%; margin-top: 1.25rem; padding: 0.8rem 1.2rem; border: 1px solid var(--bchpay-ink); border-radius: 999px; background: var(--bchpay-ink); color: #fff; text-align: center; text-decoration: none; font: inherit; cursor: pointer; }
-.bchpay-secondary { background: transparent; color: var(--bchpay-ink); width: auto; display: inline-block; }
-.bchpay-copy { flex-shrink: 0; padding: 0.35rem 0.75rem; border: 1px solid var(--bchpay-line); border-radius: 999px; background: #fff; font: inherit; font-size: 0.875rem; cursor: pointer; }
-.bchpay-status { display: flex; align-items: center; gap: 0.6rem; padding: 1rem 1.25rem; border-top: 1px solid var(--bchpay-line); background: var(--bchpay-soft); }
-.bchpay-dot { width: 0.75rem; height: 0.75rem; flex-shrink: 0; border-radius: 50%; background: var(--bchpay-ok); animation: bchpay-pulse 1.4s ease-in-out infinite; }
-@keyframes bchpay-pulse { 50% { opacity: 0.35; } }
-.bchpay-ok { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin: 0; padding: 1rem 1.25rem; border: 1px solid var(--bchpay-ok); border-radius: 0.75rem; }
-.bchpay-warn { margin: 0 0 1rem; padding: 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--bchpay-warn) 15%, transparent); }
-.bchpay-note { margin: 0; padding: 0.75rem; border: 1px dashed var(--bchpay-warn); border-radius: 0.5rem; background: var(--bchpay-soft); font-size: 0.875rem; }
-.bchpay-error { margin: 1rem 0 0; color: var(--bchpay-bad); }
-.bchpay-coupon { padding: 1.25rem; border: 1px dashed var(--bchpay-warn); border-radius: 1rem; background: var(--bchpay-soft); }
-.bchpay-coupon.bchpay-grid { padding: 1.25rem; }
-.bchpay-help { padding: 0.75rem 1rem; border: 1px solid var(--bchpay-line); border-radius: 0.75rem; }
-.bchpay-help summary { cursor: pointer; font-weight: 600; }
+
+/* --- Small pieces -------------------------------------------------------------------- */
+
+.bchpay-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bchpay-muted);
+}
+.bchpay-title-lg,
+.bchpay-title,
+.bchpay-title-sm,
+.bchpay-display,
+.bchpay-amount,
+.bchpay-total-amount {
+  font-family: var(--bchpay-font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.bchpay-title-lg {
+  margin-top: 1rem;
+  font-size: 1.9rem;
+}
+.bchpay-title {
+  margin-top: 0.75rem;
+  font-size: 1.45rem;
+  line-height: 1.2;
+}
+.bchpay-title-sm {
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+.bchpay-display {
+  font-size: 1.2rem;
+}
+.bchpay-text {
+  margin-top: 0.25rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--bchpay-muted);
+}
+.bchpay-small {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--bchpay-muted);
+  font-variant-numeric: tabular-nums;
+}
+.bchpay-strong {
+  font-weight: 600;
+}
+.bchpay-strong .bchpay-small {
+  display: inline;
+  margin-left: 0.35rem;
+  font-weight: 400;
+}
+.bchpay-muted-text {
+  color: var(--bchpay-muted);
+}
+.bchpay-ok-text {
+  color: var(--bchpay-ok);
+  font-size: 0.9rem;
+}
+.bchpay-bad-text {
+  color: var(--bchpay-bad);
+  font-weight: 600;
+}
+.bchpay-nums,
+.bchpay-nowrap {
+  font-variant-numeric: tabular-nums;
+}
+.bchpay-nowrap {
+  white-space: nowrap;
+}
+.bchpay-block {
+  display: block;
+}
+.bchpay-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.bchpay-grow {
+  min-width: 0;
+  flex: 1;
+}
+.bchpay-right {
+  text-align: right;
+}
+.bchpay-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.bchpay-center-text {
+  text-align: center;
+}
+.bchpay-gap-sm {
+  margin-top: 0.5rem;
+}
+.bchpay-gap {
+  margin-top: 1rem;
+}
+.bchpay-gap-lg {
+  margin-top: 1.5rem;
+}
+.bchpay-gap-b {
+  margin-bottom: 1rem;
+}
+.bchpay-icon {
+  flex-shrink: 0;
+}
+.bchpay-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.bchpay-underline,
+.bchpay-link {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.bchpay-link {
+  font-size: 0.88rem;
+  color: var(--bchpay-muted);
+}
+.bchpay-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+.bchpay-address {
+  min-width: 0;
+  word-break: break-all;
+  font-size: 0.93rem;
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+}
+.bchpay-address b {
+  color: var(--bchpay-link);
+}
+.bchpay-list {
+  font-size: 0.9rem;
+  margin-top: 0.75rem;
+}
+.bchpay-copy-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+}
+.bchpay-divided {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--bchpay-line);
+}
+.bchpay-alert,
+.bchpay-warn,
+.bchpay-note,
+.bchpay-applied {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.bchpay-alert {
+  background: color-mix(in srgb, var(--bchpay-bad) 10%, transparent);
+  color: var(--bchpay-bad);
+}
+.bchpay-warn {
+  background: color-mix(in srgb, var(--bchpay-warn) 16%, transparent);
+}
+.bchpay-note {
+  border: 1px dashed var(--bchpay-warn);
+  background: var(--bchpay-soft);
+}
+.bchpay-applied {
+  border: 1px solid color-mix(in srgb, var(--bchpay-ok) 40%, transparent);
+  background: color-mix(in srgb, var(--bchpay-ok) 6%, transparent);
+}
+.bchpay-box {
+  padding: 1.25rem;
+  border: 1px solid var(--bchpay-ink);
+  border-radius: var(--bchpay-radius);
+}
+.bchpay-button,
+.bchpay-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--bchpay-ink);
+  background: var(--bchpay-ink);
+  color: var(--bchpay-on-ink);
+  font-weight: 500;
+  text-decoration: none;
+  transition: transform 0.15s, opacity 0.2s;
+}
+.bchpay-button.secondary,
+.bchpay-outline {
+  background: transparent;
+  color: var(--bchpay-ink);
+}
+.bchpay-outline {
+  width: 100%;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+.bchpay-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.bchpay-button:disabled {
+  opacity: 0.5;
+}
+.bchpay-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* --- The payment card ------------------------------------------------------------------ */
+
+/* The card settles in; its parts follow one after another. */
+.bchpay-card {
+  overflow: hidden;
+  border: 1px solid var(--bchpay-ink);
+  border-radius: calc(var(--bchpay-radius) * 1.25);
+  background: var(--bchpay-bg);
+  animation: bchpay-card-in 0.7s var(--bchpay-ease) both;
+}
+.bchpay-card-body {
+  padding: 1.25rem;
+}
+@media (min-width: 40rem) {
+  .bchpay-card-body {
+    padding: 1.5rem;
+  }
+}
+.bchpay-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.bchpay-card-logo {
+  width: 4rem;
+  height: 4rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  object-fit: cover;
+}
+.bchpay-amount {
+  margin-top: 0.5rem;
+  font-size: 2.4rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+.bchpay-unit {
+  font-size: 0.65em;
+  color: var(--bchpay-accent);
+}
+.bchpay-unit-in {
+  display: inline-block;
+  animation: bchpay-rise 0.5s 0.55s var(--bchpay-ease) both;
+}
+.bchpay-rise {
+  animation: bchpay-rise 0.55s 0.3s var(--bchpay-ease) both;
+}
+.bchpay-pop-in {
+  animation: bchpay-logo-in 0.8s 0.2s cubic-bezier(0.2, 1.4, 0.35, 1) both;
+}
+
+/* The price hold: a bar that runs down, with light running along it; another color in the last two minutes. */
+.bchpay-hold-track {
+  height: 0.25rem;
+  background: color-mix(in srgb, var(--bchpay-line) 70%, transparent);
+}
+.bchpay-hold {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: linear-gradient(90deg, var(--bchpay-accent), var(--bchpay-accent-light));
+  transition:
+    width 1s linear,
+    background 0.6s;
+}
+.bchpay-hold.low {
+  background: linear-gradient(90deg, var(--bchpay-bad), color-mix(in srgb, var(--bchpay-bad) 60%, white));
+}
+.bchpay-hold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.75), transparent) 0 0 / 40% 100% no-repeat;
+  animation: bchpay-thread-light 2.8s 1s ease-in-out infinite;
+}
+
+/* Pay now: a deep button with a slow glow of the accents turning through it. */
+.bchpay-connect {
+  position: relative;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  overflow: hidden;
+  margin-top: 1.5rem;
+  border-radius: calc(var(--bchpay-radius) * 1.25);
+  padding: 1.15rem 1.25rem;
+  background: var(--bchpay-ink);
+  color: var(--bchpay-on-ink);
+  box-shadow: 0 10px 30px rgb(var(--bchpay-shadow) / 0.25);
+  transition:
+    transform 0.2s var(--bchpay-ease),
+    box-shadow 0.3s;
+  animation: bchpay-qr-pop 0.7s 0.1s cubic-bezier(0.2, 1.2, 0.35, 1) both;
+}
+.bchpay-connect:hover {
+  box-shadow: 0 14px 38px color-mix(in srgb, var(--bchpay-accent) 35%, transparent);
+}
+.bchpay-connect:active {
+  transform: scale(0.98);
+}
+.bchpay-connect-glow {
+  position: absolute;
+  inset: -40%;
+  background: conic-gradient(from 0deg, transparent 0 55%, color-mix(in srgb, var(--bchpay-accent-light) 45%, transparent) 65%, color-mix(in srgb, var(--bchpay-accent-2) 35%, transparent) 75%, transparent 85%);
+  animation: bchpay-spin 6s linear infinite;
+}
+.bchpay-connect-inner {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+}
+.bchpay-connect-sub {
+  font-size: 0.88rem;
+  opacity: 0.75;
+}
+
+/* Watching for the payment: a ping. */
+.bchpay-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--bchpay-line);
+  background: var(--bchpay-soft);
+  font-size: 0.93rem;
+}
+.bchpay-ping {
+  position: relative;
+  display: flex;
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+}
+.bchpay-ping span {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--bchpay-ok);
+}
+.bchpay-ping span:first-child {
+  opacity: 0.5;
+  animation: bchpay-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* The order in BCH: each line rises in turn; the tokens' line is picked out. */
+.bchpay-receipt {
+  border-top: 1px solid var(--bchpay-line);
+  padding: 1.25rem;
+}
+.bchpay-lines {
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+}
+.bchpay-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.45rem;
+  animation: bchpay-rise 0.5s var(--bchpay-ease) both;
+}
+.bchpay-line dt {
+  min-width: 0;
+}
+.bchpay-line dd {
+  flex-shrink: 0;
+  text-align: right;
+}
+.bchpay-line.tokens {
+  margin-inline: -0.6rem;
+  padding-inline: 0.6rem;
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--bchpay-ok) 8%, transparent);
+  color: var(--bchpay-ok);
+}
+.bchpay-line.total {
+  margin-top: 0.35rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed var(--bchpay-line);
+  font-weight: 500;
+}
+.bchpay-chip {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--bchpay-accent-light);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+/* Payment received: the tick pops, rings spread and threads in the theme's colors burst out. */
+.bchpay-landed {
+  padding: 2.25rem 1.25rem;
+  border: 1px solid var(--bchpay-ok);
+  border-radius: var(--bchpay-radius);
+  background: color-mix(in srgb, var(--bchpay-ok) 5%, transparent);
+  text-align: center;
+  animation: bchpay-card-in 0.6s var(--bchpay-ease) both;
+}
+.bchpay-landed-mark {
+  position: relative;
+  width: 5.5rem;
+  height: 5.5rem;
+  margin: 0 auto 0.5rem;
+}
+.bchpay-landed-tick {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 10px 22px color-mix(in srgb, var(--bchpay-ok) 35%, transparent));
+  animation: bchpay-logo-in 0.7s cubic-bezier(0.2, 1.5, 0.35, 1) both;
+}
+.bchpay-landed-tick .bchpay-tick-path {
+  stroke-dasharray: 1;
+  animation: bchpay-draw 0.45s 0.35s ease-out both;
+}
+.bchpay-landed-wave {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 2px solid var(--bchpay-accent);
+  animation: bchpay-wave 1.3s 0.1s cubic-bezier(0.2, 0.6, 0.35, 1) both;
+}
+.bchpay-thread {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 15px;
+  margin: -7.5px 0 0 -1.5px;
+  border-radius: 3px;
+  opacity: 0;
+  background: var(--bchpay-accent);
+  animation: bchpay-burst 1.15s cubic-bezier(0.15, 0.7, 0.3, 1) both;
+}
+.bchpay-thread:nth-of-type(6n + 1) { background: var(--bchpay-accent-2); }
+.bchpay-thread:nth-of-type(6n + 2) { background: var(--bchpay-ok); }
+.bchpay-thread:nth-of-type(6n + 3) { background: var(--bchpay-accent-light); }
+.bchpay-thread:nth-of-type(6n + 4) { background: var(--bchpay-link); }
+.bchpay-thread:nth-of-type(6n + 5) { background: var(--bchpay-warn); }
+.bchpay-landed-text {
+  animation: bchpay-rise 0.55s 0.45s var(--bchpay-ease) both;
+}
+.bchpay-dots::after {
+  content: "…";
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  animation: bchpay-dots 1.2s steps(4) infinite;
+}
+
+/* Paid. */
+.bchpay-paid {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--bchpay-ok);
+  border-radius: var(--bchpay-radius);
+  animation: bchpay-card-in 0.6s var(--bchpay-ease) both;
+}
+.bchpay-paid-tick {
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+}
+.bchpay-tick-disc {
+  fill: var(--bchpay-ok);
+}
+.bchpay-tick-ring {
+  stroke: var(--bchpay-accent-light);
+}
+.bchpay-tick-path {
+  stroke: var(--bchpay-on-ink);
+}
+
+/* Help. */
+.bchpay-help {
+  border: 1px solid var(--bchpay-line);
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+}
+.bchpay-help details {
+  padding: 0.75rem 1rem;
+}
+.bchpay-help details + details {
+  border-top: 1px solid var(--bchpay-line);
+}
+.bchpay-help summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+.bchpay-help summary::-webkit-details-marker {
+  display: none;
+}
+.bchpay-help summary::after {
+  content: "+";
+  float: right;
+  color: var(--bchpay-muted);
+  transition: transform 0.2s;
+}
+.bchpay-help details[open] summary::after {
+  transform: rotate(45deg);
+}
+.bchpay-help p {
+  margin-top: 0.5rem;
+  line-height: 1.6;
+}
+
+/* --- The QR code: it pops up, ripples out from the middle, a ring draws round the logo and a sheen passes over --- */
+
+@property --bchpay-reveal {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 150%;
+}
+.bchpay-qr {
+  position: relative;
+  max-width: 100%;
+}
+.bchpay-qr-box {
+  position: relative;
+  z-index: 1;
+  aspect-ratio: 1;
+  border-radius: 1.1rem;
+  overflow: hidden;
+  background: var(--bchpay-qr-bg);
+  box-shadow:
+    0 1px 2px rgb(var(--bchpay-shadow) / 0.06),
+    0 14px 36px rgb(var(--bchpay-shadow) / 0.14);
+  animation: bchpay-qr-pop 0.75s 0.1s cubic-bezier(0.2, 1.2, 0.35, 1) both;
+}
+.bchpay-qr-code {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: bchpay-ripple 0.9s 0.3s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+  -webkit-mask-image: radial-gradient(circle, #000 calc(var(--bchpay-reveal) - 20%), transparent var(--bchpay-reveal));
+  mask-image: radial-gradient(circle, #000 calc(var(--bchpay-reveal) - 20%), transparent var(--bchpay-reveal));
+}
+.bchpay-qr-bg {
+  fill: var(--bchpay-qr-bg);
+}
+.bchpay-qr-dots {
+  fill: var(--bchpay-qr-dots);
+}
+.bchpay-qr-marker {
+  stroke: var(--bchpay-qr-marker);
+}
+.bchpay-qr-eye {
+  fill: var(--bchpay-qr-eye);
+}
+.bchpay-qr-ring {
+  stroke: var(--bchpay-qr-ring);
+  stroke-dasharray: 1;
+  transform-origin: center;
+  transform: rotate(-90deg);
+  animation: bchpay-draw 0.9s 0.35s var(--bchpay-ease) both;
+}
+.bchpay-qr-logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  overflow: hidden;
+  animation:
+    bchpay-logo-in 0.8s 0.15s cubic-bezier(0.2, 1.4, 0.35, 1) both,
+    bchpay-breathe 3.2s 1.2s ease-in-out infinite;
+}
+.bchpay-qr-logo img,
+.bchpay-qr-logo .bchpay-fill {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bchpay-qr-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / 0.75) 50%, transparent 65%);
+  transform: translateX(-130%);
+  animation: bchpay-sheen 1s 0.95s ease-in-out both;
+}
+/* While it waits for the payment, soft rings pulse out behind the code. */
+.bchpay-sonar {
+  display: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 1.25rem;
+  border: 2px solid var(--bchpay-accent);
+  opacity: 0;
+}
+.bchpay-qr.listening .bchpay-sonar {
+  display: block;
+  animation: bchpay-sonar 3s 1.4s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+}
+.bchpay-qr.listening .bchpay-sonar + .bchpay-sonar {
+  animation-delay: 2.9s;
+}
+
+/* The amount: its digits roll up one after another. */
+.bchpay-roll > span {
+  display: inline-block;
+  animation: bchpay-digit 0.6s cubic-bezier(0.2, 1.25, 0.35, 1) both;
+}
+
+/* Copy: "Copied" rolls up into place, the button turns green and the tick draws itself. */
+.bchpay-copy {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--bchpay-line);
+  border-radius: 999px;
+  background: var(--bchpay-bg);
+  padding: 0.375rem 0.85rem;
+  font-size: 0.875rem;
+  transition:
+    background-color 0.25s,
+    border-color 0.25s,
+    color 0.25s,
+    transform 0.14s;
+}
+.bchpay-copy:hover {
+  border-color: var(--bchpay-ink);
+}
+.bchpay-copy:active {
+  transform: scale(0.95);
+}
+.bchpay-copy .face {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition:
+    opacity 0.2s ease,
+    transform 0.38s cubic-bezier(0.2, 1.3, 0.35, 1);
+}
+.bchpay-copy .ok {
+  opacity: 0;
+  transform: translateY(14px) scale(0.9);
+}
+.bchpay-copy.done {
+  background: var(--bchpay-ok);
+  border-color: var(--bchpay-ok);
+  color: #fff;
+  animation: bchpay-bump 0.4s cubic-bezier(0.2, 1.3, 0.35, 1);
+}
+.bchpay-copy.done .idle {
+  opacity: 0;
+  transform: translateY(-14px) scale(0.9);
+}
+.bchpay-copy.done .ok {
+  opacity: 1;
+  transform: none;
+}
+.bchpay-copy .ok path {
+  stroke-dasharray: 22;
+  stroke-dashoffset: 22;
+}
+.bchpay-copy.done .ok path {
+  animation: bchpay-tick 0.34s 0.12s ease-out forwards;
+}
+
+/* --- The pay sheet: slides up from the bottom on a phone (a card in the middle on a computer), over a
+       blurred page. Each step slides in; the top can be dragged down to close it. ------------------- */
+
+.bchpay-sheet-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.bchpay-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--bchpay-shadow) / 0.45);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: bchpay-fade 0.3s ease-out both;
+}
+.bchpay-sheet {
+  position: relative;
+  width: 100%;
+  max-height: 92dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 1.6rem 1.6rem 0 0;
+  background: var(--bchpay-bg);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -12px 50px rgb(var(--bchpay-shadow) / 0.25);
+  outline: none;
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+  animation: bchpay-up 0.5s cubic-bezier(0.2, 1, 0.3, 1) both;
+}
+.bchpay-sheet-wrap.closing .bchpay-sheet {
+  animation: bchpay-down 0.26s cubic-bezier(0.4, 0, 1, 1) both;
+}
+.bchpay-sheet-wrap.closing .bchpay-sheet-backdrop {
+  animation: bchpay-fade-out 0.26s ease-in both;
+}
+@media (min-width: 40rem) {
+  .bchpay-sheet-wrap {
+    align-items: center;
+  }
+  .bchpay-sheet {
+    max-width: 28rem;
+    border-radius: 1.6rem;
+    box-shadow: 0 30px 80px rgb(var(--bchpay-shadow) / 0.3);
+    animation-name: bchpay-pop;
+  }
+  .bchpay-sheet-wrap.closing .bchpay-sheet {
+    animation-name: bchpay-pop-out;
+  }
+  /* Nothing to drag on a computer: just a little room at the top. */
+  .bchpay-sheet-grab {
+    padding: 0.75rem 0 0;
+  }
+  .bchpay-sheet-grab span {
+    visibility: hidden;
+  }
+}
+.bchpay-sheet-grab {
+  display: flex;
+  justify-content: center;
+  padding: 0.6rem 0 0.9rem;
+  cursor: grab;
+  touch-action: none;
+}
+.bchpay-sheet-grab span {
+  width: 2.5rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: var(--bchpay-line);
+}
+.bchpay-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1.5rem 1rem;
+}
+.bchpay-sheet-logo {
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  object-fit: cover;
+}
+.bchpay-sheet-x {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--bchpay-soft);
+  color: var(--bchpay-muted);
+  font-size: 0.8rem;
+}
+.bchpay-step {
+  animation: bchpay-step-in 0.42s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.bchpay-pane {
+  padding: 0.5rem 1.5rem 1.75rem;
+}
+.bchpay-pane-top {
+  padding: 0 1.5rem 0.5rem;
+}
+.bchpay-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  border-top: 1px solid var(--bchpay-line);
+  padding: 0.95rem 1.25rem;
+}
+.bchpay-row.stack {
+  display: block;
+}
+.bchpay-row-label {
+  width: 4.5rem;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--bchpay-muted);
+}
+.bchpay-token-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.bchpay-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--bchpay-line);
+  border-radius: 999px;
+  background: var(--bchpay-bg);
+}
+.bchpay-stepper button {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  font-size: 1.25rem;
+  transition: transform 0.12s;
+}
+.bchpay-stepper button:active:not(:disabled) {
+  transform: scale(0.85);
+}
+.bchpay-stepper button:disabled {
+  opacity: 0.3;
+}
+.bchpay-stepper > span {
+  min-width: 2.2rem;
+  text-align: center;
+  font-family: var(--bchpay-font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+.bchpay-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 0.4rem;
+  margin-top: 1rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--bchpay-accent) var(--fill), var(--bchpay-line) var(--fill));
+  cursor: pointer;
+}
+.bchpay-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: var(--bchpay-bg);
+  border: 2px solid var(--bchpay-accent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--bchpay-accent) 35%, transparent);
+  transition: transform 0.15s;
+}
+.bchpay-range:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+.bchpay-range::-moz-range-thumb {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: var(--bchpay-bg);
+  border: 2px solid var(--bchpay-accent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--bchpay-accent) 35%, transparent);
+}
+.bchpay-skeleton {
+  border-radius: var(--bchpay-radius);
+  background: linear-gradient(100deg, var(--bchpay-soft) 40%, color-mix(in srgb, var(--bchpay-soft) 40%, white) 50%, var(--bchpay-soft) 60%) 0 0 / 250% 100%;
+  animation: bchpay-shimmer 1.1s linear infinite;
+}
+.bchpay-skeleton-row {
+  height: 7rem;
+  margin: 1rem 1.5rem;
+}
+.bchpay-fold {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+  font-size: 0.9rem;
+}
+.bchpay-chevron {
+  color: var(--bchpay-muted);
+  transition: transform 0.3s;
+}
+.bchpay-chevron.open {
+  transform: rotate(180deg);
+}
+.bchpay-details {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.bchpay-details > * {
+  overflow: hidden;
+}
+.bchpay-details.open {
+  grid-template-rows: 1fr;
+}
+.bchpay-details .bchpay-lines {
+  margin-top: 0.5rem;
+}
+.bchpay-total {
+  padding: 1rem 1.5rem 1.75rem;
+}
+.bchpay-total-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.bchpay-total-amount {
+  display: block;
+  font-size: 2rem;
+  line-height: 1;
+}
+/* The one big button, as on a payment sheet: full width, a light passing over it. */
+.bchpay-primary {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  overflow: hidden;
+  border-radius: var(--bchpay-radius);
+  background: var(--bchpay-ink);
+  color: var(--bchpay-on-ink);
+  font-size: 1.1rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    transform 0.15s,
+    opacity 0.2s;
+}
+.bchpay-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, var(--bchpay-accent-light) 45%, transparent) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: bchpay-sheen 1.2s 0.6s ease-in-out both;
+}
+.bchpay-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.bchpay-primary:disabled {
+  opacity: 0.45;
+}
+/* Waiting for the wallet: rings ripple out from it. */
+.bchpay-approve-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 6rem;
+  height: 6rem;
+  margin: 0.5rem auto 0;
+}
+.bchpay-approve-mark > span {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 2px solid var(--bchpay-accent);
+  animation: bchpay-ring 2s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+}
+.bchpay-approve-mark > span + span {
+  animation-delay: 1s;
+}
+.bchpay-wallet-glyph {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  margin-inline: auto;
+  border-radius: 999px;
+  background: var(--bchpay-bg);
+  box-shadow: 0 6px 20px rgb(var(--bchpay-shadow) / 0.12);
+}
+.bchpay-wallet-glyph-badge {
+  position: absolute;
+  right: -0.25rem;
+  bottom: -0.25rem;
+}
+.bchpay-glyph-ink {
+  fill: var(--bchpay-ink);
+}
+.bchpay-glyph-ink-line {
+  stroke: var(--bchpay-ink);
+}
+.bchpay-glyph-accent {
+  fill: var(--bchpay-accent);
+}
+.bchpay-glyph-bg {
+  fill: var(--bchpay-bg);
+}
+.bchpay-glyph-coin {
+  fill: none;
+  stroke: var(--bchpay-accent);
+}
+.bchpay-glyph-spark {
+  fill: var(--bchpay-accent-2);
+}
+.bchpay-done-mark {
+  width: 5rem;
+  height: 5rem;
+  filter: drop-shadow(0 10px 22px color-mix(in srgb, var(--bchpay-ok) 35%, transparent));
+  animation: bchpay-logo-in 0.6s cubic-bezier(0.2, 1.5, 0.35, 1) both;
+}
+.bchpay-done-mark svg {
+  width: 100%;
+  height: 100%;
+}
+.bchpay-done-mark .bchpay-tick-path {
+  stroke-dasharray: 1;
+  animation: bchpay-draw 0.45s 0.3s ease-out both;
+}
+/* The two ways (connect a wallet, any wallet): two choices with a pill that slides under the one chosen. */
+.bchpay-methods {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0 1.5rem 1rem;
+  padding: 0.3rem;
+  border-radius: 1.1rem;
+  background: var(--bchpay-soft);
+}
+.bchpay-methods button {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.55rem 0.5rem;
+  border-radius: 0.85rem;
+  font-weight: 500;
+  color: var(--bchpay-ink);
+  transition: color 0.3s;
+}
+.bchpay-methods button span {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--bchpay-muted);
+  transition: color 0.3s;
+}
+.bchpay-methods button[aria-selected="true"] {
+  color: var(--bchpay-on-ink);
+}
+.bchpay-methods button[aria-selected="true"] span {
+  color: var(--bchpay-accent-light);
+}
+.bchpay-methods-pill {
+  position: absolute;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  left: 0.3rem;
+  width: calc(50% - 0.3rem);
+  border-radius: 0.85rem;
+  background: var(--bchpay-ink);
+  box-shadow: 0 4px 14px rgb(var(--bchpay-shadow) / 0.25);
+  transition: transform 0.45s cubic-bezier(0.2, 1.1, 0.35, 1);
+}
+/* "Have tokens?": a soft card that unfolds to send them first. */
+.bchpay-tokens-first {
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--bchpay-radius);
+  border: 1px dashed var(--bchpay-accent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--bchpay-accent-light) 16%, transparent), color-mix(in srgb, var(--bchpay-ok) 5%, transparent));
+}
+.bchpay-send-box {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-radius: var(--bchpay-radius);
+  background: var(--bchpay-soft);
+}
+.bchpay-send-box .bchpay-title {
+  margin-top: 0;
+}
+/* Waiting for a payment sent from any wallet: a dot breathing. */
+.bchpay-watching {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+}
+.bchpay-watching span {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--bchpay-ok);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--bchpay-ok) 50%, transparent);
+  animation: bchpay-breathe-dot 1.8s ease-out infinite;
+}
+
+/* --- Rewards: a tinted note ("You'll earn 1 SHOP back"), and the reward card after paying --- */
+
+.bchpay-reward {
+  display: flex;
+  width: fit-content;
+  margin-inline: auto;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--bchpay-accent-light);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bchpay-accent-light) 20%, transparent), color-mix(in srgb, var(--bchpay-accent-2) 7%, transparent));
+  padding: 0.4rem 0.9rem;
+  font-size: 0.9rem;
+  animation: bchpay-rise 0.5s var(--bchpay-ease) both;
+}
+.bchpay-reward-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1.25rem;
+  border-radius: calc(var(--bchpay-radius) * 1.25);
+  border: 1px solid var(--bchpay-accent-light);
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--bchpay-accent-light) 24%, transparent), transparent 55%),
+    radial-gradient(120% 140% at 0% 100%, color-mix(in srgb, var(--bchpay-accent-2) 8%, transparent), transparent 55%),
+    var(--bchpay-bg);
+  animation: bchpay-card-in 0.7s 0.2s var(--bchpay-ease) both;
+}
+.bchpay-reward-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.bchpay-reward-head .bchpay-title {
+  margin-top: 0.15rem;
+}
+.bchpay-reward-coin {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bchpay-bg);
+  box-shadow:
+    0 0 0 2px var(--bchpay-accent-light),
+    0 8px 20px color-mix(in srgb, var(--bchpay-accent) 25%, transparent);
+  animation: bchpay-logo-in 0.8s 0.45s cubic-bezier(0.2, 1.4, 0.35, 1) both;
+}
+.bchpay-reward-coin img {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: cover;
+}
+.bchpay-claim-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+@media (min-width: 40rem) {
+  .bchpay-claim-form {
+    flex-direction: row;
+  }
+}
+.bchpay-claim-form input {
+  min-width: 0;
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--bchpay-line);
+  background: var(--bchpay-bg);
+  color: inherit;
+  font: inherit;
+}
+
+/* --- Motion ------------------------------------------------------------------------------ */
+
+@keyframes bchpay-card-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.985);
+  }
+}
+@keyframes bchpay-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+}
+@keyframes bchpay-qr-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.86) rotate(-2deg);
+  }
+}
+@keyframes bchpay-ripple {
+  from {
+    --bchpay-reveal: 0%;
+  }
+  to {
+    --bchpay-reveal: 150%;
+  }
+}
+@keyframes bchpay-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes bchpay-tick {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes bchpay-logo-in {
+  from {
+    opacity: 0;
+    scale: 0.3;
+    rotate: -120deg;
+  }
+}
+@keyframes bchpay-breathe {
+  50% {
+    scale: 1.06;
+  }
+}
+@keyframes bchpay-sheen {
+  to {
+    transform: translateX(130%);
+  }
+}
+@keyframes bchpay-sonar {
+  0% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.14);
+  }
+}
+@keyframes bchpay-thread-light {
+  from {
+    background-position: -50% 0;
+  }
+  to {
+    background-position: 150% 0;
+  }
+}
+@keyframes bchpay-digit {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.65em, 0);
+    filter: blur(4px);
+  }
+}
+@keyframes bchpay-bump {
+  45% {
+    transform: scale(1.07);
+  }
+}
+@keyframes bchpay-wave {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+@keyframes bchpay-burst {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(-20px) rotate(0deg);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(calc(-1 * var(--d))) rotate(var(--s));
+  }
+}
+@keyframes bchpay-dots {
+  from {
+    width: 0;
+  }
+  to {
+    width: 1.25em;
+  }
+}
+@keyframes bchpay-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bchpay-ping {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+@keyframes bchpay-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@keyframes bchpay-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes bchpay-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes bchpay-pop {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+}
+@keyframes bchpay-pop-out {
+  to {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+@keyframes bchpay-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes bchpay-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes bchpay-step-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+@keyframes bchpay-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(0.75);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+@keyframes bchpay-breathe-dot {
+  70% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--bchpay-ok) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--bchpay-ok) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bchpay *,
+  .bchpay *::before,
+  .bchpay *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+  .bchpay-sonar,
+  .bchpay-connect-glow,
+  .bchpay-watching span,
+  .bchpay-approve-mark > span,
+  .bchpay-thread,
+  .bchpay-landed-wave,
+  .bchpay-ping span:first-child,
+  .bchpay-hold::after {
+    display: none !important;
+  }
+}
