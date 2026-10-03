@@ -1,0 +1,43 @@
+# Builds the live demo (demo/) and publishes it with GitHub Pages
+# (Settings → Pages → Source: GitHub Actions).
+name: Demo
+on:
+  push:
+    branches: [main]
+    paths: ["demo/**", "src/**", "examples/react/**", "test/fakes.mjs", ".github/workflows/demo.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - run: npm ci
+        working-directory: demo
+      - run: npm run build
+        working-directory: demo
+        env:
+          DEMO_BASE: /${{ github.event.repository.name }}/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: demo/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

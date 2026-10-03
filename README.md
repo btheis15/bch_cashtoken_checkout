@@ -4,6 +4,17 @@ Accept **Bitcoin Cash** on your own website, paid straight into your own wallet.
 
 Fork it, copy what you need into your shop, and make the payment screen look like your site.
 
+**[▶ Try the live demo](https://btheis15.github.io/bch_cashtoken_checkout/)**: the kit's real code and payment
+screen running in your browser against a simulated Bitcoin Cash network, with
+[Om Threads Boutique](https://omthreadsboutique.vercel.app) (a real shop running this code) as the sample shop.
+No wallet or server needed. ([What's in it](#see-it-work))
+
+<p align="center">
+  <img src="docs/images/connect-wallet.png" width="300" alt="Connect wallet: the shopper's wallet, 5 Om Threads tokens taking $20 off on a slider, and one Pay button">
+  &nbsp;
+  <img src="docs/images/any-wallet-qr.png" width="300" alt="Any wallet: a QR code with the shop's logo, the exact amount and the address to copy">
+</p>
+
 - **No payment company, account or fees.** You give your server your wallet's
   **xPub**. That extended *public* key lists the wallet's addresses but can't spend.
 - **Each order gets its own address** in your wallet. Your server watches the
@@ -57,6 +68,64 @@ Fork it, copy what you need into your shop, and make the payment screen look lik
  your token ─▶ minted from the hot wallet; wallets read /bcmr/<category>.json (its hash is on chain)
 ```
 
+## See it work
+
+**[The live demo](https://btheis15.github.io/bch_cashtoken_checkout/)** runs `src/` and `examples/react/` unchanged in
+the browser. The network is the same stand-in the tests use (`test/fakes.mjs`): real transactions, built and signed
+with libauth, just never broadcast. A panel beside the checkout lets you be the network, and shows every
+transaction's outputs, what the shop sees, and the engine's own log.
+
+| Try | What you'll see |
+|---|---|
+| **Connect wallet** in the pay sheet | A simulated wallet (1 BCH, 5 OMT) connects, the token slider takes $20 off, and one transaction pays the shop, the sales partner's 5% and spends the coupons. The reward (1 OMT) comes straight back, and the receipt arrives as an NFT. |
+| **Any wallet pays the QR code** | The payment counts after the double-spend-proof wait, the partner's share goes from the hot wallet at once, and the reward and receipt wait to be claimed (the payer might be an exchange). |
+| **Send 3 OMT coupon tokens first** | The price drops by 0.03 BCH, held at the same rate and time, with the sales tax worked out again on the lower price. |
+| **Pay, with a double-spend attempt** | "Payment received", then held: the network has a proof. **Mine a block** settles it. |
+| **A multisig wallet pays** | Accepted but flagged (proofs can't cover script wallets), and the partner's share waits for a block. |
+| **Pay only half** | The screen asks for the rest. |
+
+<table>
+  <tr>
+    <td><img src="docs/images/payment-received.png" alt="Payment received: a tick and threads bursting out"></td>
+    <td><img src="docs/images/receipt-and-reward.png" alt="Paid, the receipt as a CashToken in the wallet, and 1 OMT earned"></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/split-transaction.png" alt="One transaction: 0.170375 BCH to the shop, 0.00825 BCH to the sales partner, 5 OMT to the shop, change to the shopper"><br>
+    <sub>One transaction from a connected wallet: the shop's share, the sales partner's 5% of the items, and the coupon tokens.</sub></td>
+  </tr>
+</table>
+
+Run it yourself:
+
+```sh
+npm install && npm run demo     # http://localhost:5173
+```
+
+## Feedback wanted
+
+This is built for the BCH community's own tools (Fulcrum, DSProofs, CashTokens, BCMR, wc2-bch-bcr), and it's
+running for a real shop. Before more shops pick it up, we'd love your eyes on:
+
+1. **Zero-conf policy.** A payment counts after listening 3 seconds for a double-spend proof; with a proof it's held
+   for a block; script and multisig payments (which proofs can't cover) are accepted but flagged "wait for a block
+   before shipping". Is that the right default? See [docs/zero-conf.md](docs/zero-conf.md).
+2. **Addresses from an xPub.** Each order gets the next unused address; an abandoned checkout's address is handed out
+   again after a week, so unused addresses stay within a wallet's gap limit of 20. Does that hold for the wallets you
+   use?
+3. **Prices.** The middle of Coinbase, Kraken, Bitstamp and CoinGecko, only when two agree within 1.5%, held 30
+   minutes. Better sources?
+4. **CashTokens as coupons.** Tokens sent to the order's token address before paying (or spent in the same
+   transaction from a connected wallet) take BCH off. Which wallets struggle to send tokens alongside a payment?
+5. **Connect wallet.** Tested with Cashonize, Paytaca and Zapit over wc2-bch-bcr. Others?
+6. **Receipts as NFTs.** One-of-a-kind NFTs with a BCMR registry per receipt (nothing personal on chain). Useful, or
+   noise in people's wallets?
+7. **Sales partners.** The partner's share as a second output of the shopper's own transaction, counted toward the
+   order only up to their share. Any wallet that won't sign a payment with two outputs?
+8. **Fulcrum servers.** The defaults are in `src/bch.js` (`FULCRUM_SERVERS`), preferring those with double-spend
+   proofs. Which should be on the list?
+
+Open an issue, or reply wherever you found the link.
+
 ## What's here
 
 | Path | What it is |
@@ -74,6 +143,7 @@ Fork it, copy what you need into your shop, and make the payment screen look lik
 | [`examples/server.mjs`](examples/server.mjs) | A JSON API around all of it (Node's `http`, no framework): checkout, Connect wallet, rewards, the BCMR registry, and admin routes for minting. |
 | [`examples/react/`](examples/react) | The payment screen: `BchPay`, `PaySheet`, `BchRewardCard`, and `ReceiptToken` and `ReceiptChoice`, plus the WalletConnect connector, the API client and `bch-pay.css`. |
 | [`test/`](test) | Tests against a stand-in network that builds real BCH transactions (libauth). Wallet payments, rewards and minting are signed and run through the BCH virtual machine. |
+| [`demo/`](demo) | The live demo: the kit and its payment screen in the browser, against a simulated network, with Om Threads Boutique as the sample shop. |
 | [`docs/`](docs) | [Integration](docs/integration.md) · [Zero-conf](docs/zero-conf.md) · [Coupons](docs/coupons.md) · [Connect wallet](docs/wallet-connect.md) · [Rewards](docs/rewards.md) · [Receipts](docs/receipts.md) · [Commissions](docs/commissions.md) · [Your token](docs/token.md) · [Payment screen](docs/payment-screen.md) · [Wallets](docs/wallets.md) |
 
 ## Try it

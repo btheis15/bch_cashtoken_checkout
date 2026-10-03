@@ -3,7 +3,6 @@
  * exchanges' price APIs. Payments are real BCH transactions built with
  * libauth, so the checkout decodes them exactly as it would on mainnet.
  */
-import { randomBytes } from "node:crypto";
 import {
   binToHex,
   cashAddressToLockingBytecode,
@@ -19,7 +18,7 @@ import {
   sha256,
 } from "@bitauth/libauth";
 
-const hex = (n) => randomBytes(n).toString("hex");
+const hex = (n) => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, "0")).join("");
 const jsonRes = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 /**

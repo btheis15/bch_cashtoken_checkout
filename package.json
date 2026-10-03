@@ -27,7 +27,8 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "example": "node examples/server.mjs",
-    "new-wallet": "node examples/new-wallet.mjs"
+    "new-wallet": "node examples/new-wallet.mjs",
+    "demo": "npm --prefix demo install && npm --prefix demo run dev"
   },
   "dependencies": {
     "@bitauth/libauth": "3.0.0",
