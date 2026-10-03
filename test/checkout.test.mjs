@@ -161,14 +161,14 @@ describe("payments", () => {
 
 describe("CashTokens coupons", () => {
   const coupons = [
-    { category: COUPON, label: "Loyal friend 15%", token: "ft", units: 1, kind: "percent", value: 15, symbol: "OMT" },
+    { category: COUPON, label: "Loyal friend 15%", token: "ft", units: 1, kind: "percent", value: 15, symbol: "SHOP" },
     { category: "d1".repeat(32), label: "Ten dollars off", token: "nft", kind: "amount", value: 10 },
   ];
 
   test("a coupon sent to the order's token address takes the discount off and gives a new price", async () => {
     const { bch, chain, payment } = setup({ coupons: [coupons[0]] });
     const v = await bch.start({ id: "m", subtotalCents: 6000, otherCents: 600 });
-    assert.deepEqual(v.coupon, { address: addressAt(wallet, 0).tokenAddress, uri: `${addressAt(wallet, 0).tokenAddress}?c=${COUPON}&f=1`, coupons: [{ label: "Loyal friend 15%", off: "15% off", send: "1 OMT" }] });
+    assert.deepEqual(v.coupon, { address: addressAt(wallet, 0).tokenAddress, uri: `${addressAt(wallet, 0).tokenAddress}?c=${COUPON}&f=1`, coupons: [{ label: "Loyal friend 15%", off: "15% off", send: "1 SHOP" }], stack: false });
     chain.pay(v.coupon.address, { token: { category: "ab".repeat(32), amount: 3 } });
     chain.pay(v.coupon.address, { token: { category: COUPON, amount: 1 } });
     await sleep(30);
