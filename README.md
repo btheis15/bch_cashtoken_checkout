@@ -21,6 +21,11 @@ Fork it, copy what you need into your shop, and make the payment screen look lik
 - **Rewards.** Cash back in your own token after a BCH payment, such as 1
   token for every 0.1 BCH. It's sent straight back to a connected wallet, or
   claimed on the order page. See [docs/rewards.md](docs/rewards.md).
+- **Receipts as CashTokens.** The shopper picks email, CashToken or both. The
+  CashToken is a one-of-a-kind NFT in their wallet ("Receipt #1042"), and what
+  wallets show is published with each one, with nothing personal on chain. On
+  screen, the paper receipt folds into a coin that's thrown into their
+  wallet. See [docs/receipts.md](docs/receipts.md).
 - **Mint your own token from your server.** The whole supply goes into a
   small hot wallet, along with what wallets show for the token: name, symbol,
   icon and description, published on chain as a BCMR registry. You can update
@@ -32,6 +37,7 @@ Fork it, copy what you need into your shop, and make the payment screen look lik
   - A price-hold bar that runs down, and copy buttons that tick
   - The order in BCH, line by line, which updates as the token slider moves
   - A "Payment received!" burst when the payment lands, then the reward card
+  - The receipt folding into a coin, spinning, and thrown into the shopper's wallet
 
 ```
  your checkout ──▶ start(order): address xpub/0/<n> reserved, BCH price from the exchanges
@@ -55,12 +61,13 @@ Fork it, copy what you need into your shop, and make the payment screen look lik
 | [`src/tokens.js`](src/tokens.js) | Token amounts, plus `checkCoupons` and `checkRewards` to validate your settings. |
 | [`src/hot-wallet.js`](src/hot-wallet.js) | The small wallet whose key is on your server. It sends rewards and mints your token, one send at a time, and never spends the token's identity output. |
 | [`src/rewards.js`](src/rewards.js) | The rewards engine, used by `createBchCheckout({ rewards })`. |
+| [`src/receipts.js`](src/receipts.js) | Receipts as CashTokens: the collection (a minting baton in the hot wallet), and each receipt minted with the registry that lists it. |
 | [`src/token.js`](src/token.js) | Minting your token and updating what wallets show for it (CashTokens genesis, CHIP-BCMR authchain). |
 | [`src/memory-store.js`](src/memory-store.js), [`src/file-store.js`](src/file-store.js) | The storage interface, in memory or in a JSON file. Use your database in production; [docs/integration.md](docs/integration.md) has a SQL schema. |
 | [`examples/server.mjs`](examples/server.mjs) | A JSON API around all of it (Node's `http`, no framework): checkout, Connect wallet, rewards, the BCMR registry, and admin routes for minting. |
-| [`examples/react/`](examples/react) | The payment screen: `BchPay`, `PaySheet` and `BchRewardCard`, plus the WalletConnect connector, the API client and `bch-pay.css`. |
+| [`examples/react/`](examples/react) | The payment screen: `BchPay`, `PaySheet`, `BchRewardCard`, and `ReceiptToken` and `ReceiptChoice`, plus the WalletConnect connector, the API client and `bch-pay.css`. |
 | [`test/`](test) | Tests against a stand-in network that builds real BCH transactions (libauth). Wallet payments, rewards and minting are signed and run through the BCH virtual machine. |
-| [`docs/`](docs) | [Integration](docs/integration.md) · [Zero-conf](docs/zero-conf.md) · [Coupons](docs/coupons.md) · [Connect wallet](docs/wallet-connect.md) · [Rewards](docs/rewards.md) · [Your token](docs/token.md) · [Payment screen](docs/payment-screen.md) · [Wallets](docs/wallets.md) |
+| [`docs/`](docs) | [Integration](docs/integration.md) · [Zero-conf](docs/zero-conf.md) · [Coupons](docs/coupons.md) · [Connect wallet](docs/wallet-connect.md) · [Rewards](docs/rewards.md) · [Receipts](docs/receipts.md) · [Your token](docs/token.md) · [Payment screen](docs/payment-screen.md) · [Wallets](docs/wallets.md) |
 
 ## Try it
 

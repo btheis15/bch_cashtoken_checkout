@@ -8,6 +8,7 @@ Next.js, Vite, Remix or anything else with React 18+.
 |---|---|
 | `BchPay.tsx` | The screen. It shows the amount, the price hold, the "Pay now" button, the order in BCH, live status, the "Payment received!" burst, "Paid", and help. |
 | `PaySheet.tsx` | The sheet that slides up, with Connect wallet (wallet, token slider, one tap to pay, approve in the wallet) and Any wallet (QR code or "Open in my wallet app", copy buttons, tokens first). |
+| `ReceiptToken.tsx` | The receipt as a CashToken: paper, then folded into a coin, spun and thrown into the wallet ("in your wallet", Replay, View receipt), or claimed. `ReceiptChoice` is the email / CashToken / both choice for checkout ([docs/receipts.md](receipts.md)). |
 | `BchRewardCard.tsx` | The reward after paying: on its way, sent, or claim it with a connected wallet or a pasted address. |
 | `parts.tsx` | The QR code (drawn on the page), copy button, rolling digits, address, the order in BCH, and the Bitcoin Cash mark. |
 | `walletConnect.ts` | The WalletConnect connector ([docs/wallet-connect.md](wallet-connect.md)). |
@@ -60,6 +61,12 @@ Create the API and the connector once (outside the component, or with
 - **Paid:** the tick pops and draws itself, rings spread, and threads in your
   colors burst out.
 - **The reward card** settles in with its coin spinning into place.
+- **The receipt** prints out of the printer, then folds down into a coin that
+  pops out, spins as the light catches it, and is thrown in an arc (ghost coins
+  streaking behind, sparks bursting off it) into a wallet that slides in to
+  catch it, bumps, and shows "+1". Then it settles to "in your wallet". The coin
+  wears `brand.logo` (or the Bitcoin Cash mark), in `--bchpay-coin`, a gradient
+  of your accent colors that you can override.
 
 All of it stops for people who ask for reduced motion.
 

@@ -19,6 +19,7 @@ import type { BchApi } from "./api";
 import { BchRewardCard } from "./BchRewardCard";
 import { BchIcon, BchReceipt, dollars, DoneTick, RewardGlyph, RollingAmount } from "./parts";
 import { PaySheet } from "./PaySheet";
+import { ReceiptToken } from "./ReceiptToken";
 import { BCH_WALLETS, type BchBrand, type BchQuote, type BchView } from "./types";
 import type { BchWalletConnect } from "./walletConnect";
 
@@ -336,6 +337,11 @@ export function BchPay({
             </p>
           )}
         </div>
+      )}
+
+      {/* The receipt as a CashToken, when chosen: folded into a coin and thrown into their wallet. */}
+      {bch.state === "paid" && (bch.receipt || (bch.receiptPref && bch.receiptPref !== "email")) && (
+        <ReceiptToken api={api} initial={bch.receipt ?? null} expected={bch.receiptPref !== "email"} brand={brand} wc={wc} />
       )}
 
       {(bch.reward || (bch.state === "paid" && offered.current)) && <BchRewardCard api={api} initial={bch.reward ?? null} brand={brand} wc={wc} />}

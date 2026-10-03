@@ -54,7 +54,8 @@ import {
   walletAddress,
   walletHoldings,
 } from "./bch.js";
-import { createRewardsEngine } from "./rewards.js";
+import { createReceiptsEngine } from "./receipts.js";
+import { connectedPayer, createRewardsEngine } from "./rewards.js";
 import { couponDiscount, satsPerToken, tokenScale, tokensFor, tokenText } from "./tokens.js";
 
 export { BchError, parseXpub, addressAt } from "./bch.js";
@@ -70,6 +71,8 @@ export function createBchCheckout({
   coupons = [],
   /** Rewards in your own token after a payment: { wallet: createHotWallet(…), settings: { enabled, category, perBch, tokens, … } or a function }. */
   rewards = null,
+  /** Receipts as CashTokens: createReceiptIssuer(…) (docs/receipts.md). */
+  receipts = null,
   /** (payment) => fulfil the order. Called once. */
   onPaid = () => {},
   /** (payment, { kind, message, problem }) => things the merchant should know (problem: true means look before shipping). */
@@ -130,6 +133,7 @@ export function createBchCheckout({
   const hasProblem = (p, kind) => (p.problems ?? []).some((x) => x.kind === kind);
 
   const engine = rewards ? createRewardsEngine({ wallet: rewards.wallet, settings: rewards.settings ?? {}, chain, store, update, notice, now }) : null;
+  const receiptsEngine = receipts ? createReceiptsEngine({ issuer: receipts, chain, store, update, notice, connectedPayer, earned: engine ? (p) => engine.estimate(p) : null, now }) : null;
 
   // --- Addresses ---------------------------------------------------------------------
 
@@ -212,15 +216,17 @@ export function createBchCheckout({
    * A new order's payment, with the amounts from your database (never from the browser):
    * subtotalCents: the items (what coupons take a share of) · shippingCents · taxCents (lowered when a
    * coupon comes off, see onCoupon) · otherCents: anything else, or shipping and tax together.
-   * itemCount and shippingLabel only label the order's lines in BCH. Returns the view.
+   * itemCount and shippingLabel only label the order's lines in BCH. number (an integer), items ([{ title, option, qty, unitCents }])
+   * and receipt ("email" | "token" | "both", the shopper's choice) are for receipts as CashTokens. Returns the view.
    */
-  async function start({ id, label = null, subtotalCents, shippingCents = 0, taxCents = 0, otherCents = 0, itemCount = null, shippingLabel = null }) {
+  async function start({ id, label = null, subtotalCents, shippingCents = 0, taxCents = 0, otherCents = 0, itemCount = null, shippingLabel = null, number = null, items = null, receipt = "email" }) {
     const total = subtotalCents + shippingCents + taxCents + otherCents;
     if (!id || !(subtotalCents >= 0) || ![shippingCents, taxCents, otherCents].every((c) => Number.isInteger(c) && c >= 0) || !(total > 0)) throw new BchError("start() needs an id and a total above zero.");
     if (await store.getPayment(id)) throw new BchError(`Order ${id} already has a Bitcoin Cash payment.`, { status: 409 });
     const a = await reserveAddress(id);
     const p = {
       id, label, status: "awaiting", createdAt: iso(), subtotalCents, shippingCents, taxCents, otherCents, totalCents: total, discountCents: 0, coupon: null, itemCount, shippingLabel,
+      number: Number.isInteger(number) ? number : null, items: Array.isArray(items) ? items.slice(0, 100) : null, receiptPref: receiptsEngine && ["token", "both"].includes(receipt) ? receipt : "email",
       wallet: wallet.id, index: a.index, address: a.address, tokenAddress: a.tokenAddress, lockingBytecode: a.lockingBytecode, scripthash: a.scripthash,
       windows: [], txs: {}, receivedSats: 0, confirmations: 0, problems: [], events: [],
     };
@@ -296,6 +302,7 @@ export function createBchCheckout({
       const d = due(p);
       Object.assign(p, { status: PAID, paidAt: iso(), paidSats: p.receivedSats, payTxs: Object.entries(p.txs).filter(([, t]) => t.sats > 0).map(([txid]) => txid) });
       await store.markAddressUsed(p.id);
+      if (receiptsEngine) await receiptsEngine.prepare(p).catch(() => {});
       notice(p, "paid", `Paid ${bchText(p.receivedSats)} BCH${p.coupon?.kind === "bch" ? `, with ${tokenText(p.coupon.tokens, p.coupon)}` : ""}.`);
       if (p.receivedSats < d) notice(p, "short", `${bchText(d - p.receivedSats)} BCH short of the price, within the rounding allowance.`);
       if (p.receivedSats > d * 1.005) notice(p, "extra", `${bchText(p.receivedSats - d)} BCH more than asked arrived.`);
@@ -306,6 +313,7 @@ export function createBchCheckout({
       await store.putPayment(p);
       Promise.resolve(onPaid(structuredClone(p))).catch(() => {});
       if (engine) setImmediate(() => engine.award(p.id).catch(() => {}));
+      if (receiptsEngine && p.receipt?.to) setImmediate(() => receiptsEngine.sendPending(p.id).catch(() => {}));
       return;
     }
 
@@ -511,6 +519,9 @@ export function createBchCheckout({
       // Rewards: what this order earned (once paid), or the promotion running while it's being paid.
       reward: engine ? engine.summary(p) : null,
       rewardOffer: engine && payable ? engine.offer() : null,
+      // The receipt as a CashToken, once paid (if chosen), and how the shopper chose to get it.
+      receipt: receiptsEngine ? receiptsEngine.summary(p) : null,
+      receiptPref: p.receiptPref ?? "email",
       applied: used ? (used.kind === "bch" ? { label: `${used.label} (${tokenText(used.tokens, used)})`, discountCents: p.discountCents, bch: bchText(used.sats) } : { label: used.label, discountCents: p.discountCents }) : null,
     };
   }
@@ -701,6 +712,7 @@ export function createBchCheckout({
       }
     }
     if (engine) await engine.sendPending().catch(() => {});
+    if (receiptsEngine) await receiptsEngine.sendPending().catch(() => {});
   }
 
   // Told straight away when a watched address is paid (or a block confirms it).
@@ -736,6 +748,10 @@ export function createBchCheckout({
     rewardsStatus: () => (engine ? engine.status() : noRewards()),
     /** Sends some reward tokens to an address now, to try it out: { address, amount } (whole tokens). */
     testReward: (input) => (engine ? engine.test(input) : noRewards()),
+    /** The shopper claims their CashToken receipt (paid from a wallet that wasn't connected) to a token address. */
+    claimReceipt: (id, address) => (receiptsEngine ? receiptsEngine.claim(id, address) : Promise.reject(new BchError("Receipts as CashTokens aren't set up.", { status: 404 }))),
+    /** True when the shopper chose the CashToken alone and it's going straight to their wallet: skip the receipt email (in onPaid). */
+    receiptReplacesEmail: (payment) => payment?.receiptPref === "token" && Boolean(payment?.receipt?.to),
     payment: (id) => store.getPayment(id),
     /** The wallet's first receiving address, for the merchant to compare with their wallet. */
     firstAddress: () => addressAt(wallet, 0).address,

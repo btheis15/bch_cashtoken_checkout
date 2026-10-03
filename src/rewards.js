@@ -20,6 +20,23 @@
 import { BchError, bchExplorerUrl, buildWalletPayment, payerLockingBytecodes, signWalletPayment, walletAddress, walletHoldings } from "./bch.js";
 import { checkRewards, DEFAULT_REWARDS, tokenText } from "./tokens.js";
 
+/**
+ * The token address of the wallet that paid, when it was connected (Connect wallet) and the payment's own inputs
+ * prove it: a wallet that holds tokens. Null otherwise (any other wallet might be an exchange, which would lose them).
+ */
+export async function connectedPayer(p, chain) {
+  if (!p?.walletPlan?.address) return null;
+  const plan = walletAddress(p.walletPlan.address);
+  for (const txid of p.payTxs ?? []) {
+    try {
+      if (payerLockingBytecodes(await chain.transaction(txid)).includes(plan.lockingBytecode)) return plan.tokenAddress;
+    } catch {
+      /* unreadable: it's claimed instead */
+    }
+  }
+  return null;
+}
+
 export function createRewardsEngine({ wallet, settings, chain, store, update, notice, now = () => Date.now() }) {
   if (!wallet) throw new Error("rewards needs the hot wallet (createHotWallet) that holds the tokens.");
   const fixed = typeof settings === "function" ? null : checkRewards(settings ?? {});
@@ -48,17 +65,7 @@ export function createRewardsEngine({ wallet, settings, chain, store, update, no
       const { amount, rule } = rewardFor(p.paidSats ?? p.receivedSats ?? 0, r);
       if (amount > 0) {
         // Paid from a connected wallet: it goes straight back there (checked against the payment's own inputs).
-        let to = null;
-        if (p.walletPlan?.address) {
-          const plan = walletAddress(p.walletPlan.address);
-          for (const txid of p.payTxs ?? []) {
-            try {
-              if (payerLockingBytecodes(await chain.transaction(txid)).includes(plan.lockingBytecode)) to = plan.tokenAddress;
-            } catch {
-              /* unreadable: it's claimed instead */
-            }
-          }
-        }
+        const to = await connectedPayer(p, chain);
         reward = { category: r.category, amount: String(amount), label: r.label, symbol: r.symbol ?? null, decimals: r.decimals ?? 0, rule, state: to ? "pending" : "claimable", to, at: iso(), claimUntil: to ? null : iso(now() + r.claimDays * 86_400_000) };
       }
     }
@@ -149,6 +156,14 @@ export function createRewardsEngine({ wallet, settings, chain, store, update, no
     };
   }
 
+  /** What a paid payment earns under the promotion running when it was paid, as text ("1 SHOP"), or null. */
+  function estimate(p) {
+    const r = cfg();
+    if (!running(r, day(Date.parse(p.paidAt ?? iso())))) return null;
+    const { amount } = rewardFor(p.paidSats ?? p.receivedSats ?? 0, r);
+    return amount > 0 ? text({ ...r, amount: String(amount) }) : null;
+  }
+
   /** The promotion shown while paying ("you'll earn…"), when one is running. */
   function offer() {
     const r = cfg();
@@ -209,5 +224,5 @@ export function createRewardsEngine({ wallet, settings, chain, store, update, no
     });
   }
 
-  return { award, sendPending, summary, offer, claim, status, test, rewardFor };
+  return { award, sendPending, summary, offer, claim, status, test, rewardFor, estimate };
 }

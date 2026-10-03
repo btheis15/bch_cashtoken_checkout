@@ -29,6 +29,7 @@ const bch = createBchCheckout({
 | `watchAll()` | After a restart. |
 | `walletInfo` · `walletQuote` · `walletBuild` · `walletSubmit` | Connect wallet ([docs/wallet-connect.md](wallet-connect.md)). |
 | `claimReward(id, address)` · `rewardsStatus()` · `testReward({ address, amount })` | Rewards ([docs/rewards.md](rewards.md)). |
+| `claimReceipt(id, address)` · `receiptReplacesEmail(payment)` | Receipts as CashTokens ([docs/receipts.md](receipts.md)). `start()` also takes `number`, `items` and `receipt` (`"email"`, `"token"` or `"both"`). |
 
 Errors are `BchError`s with a message for the shopper and an HTTP-style
 `status`: 400 for bad input, 404 for an unknown order, 409 when the order's
@@ -55,6 +56,7 @@ per amount, but keep it fast.
   tokens or coupon, shipping, tax) add up to exactly what's asked.
 - `walletPay`: Connect wallet can be offered (the order is `waiting` or `partial`).
 - `rewardOffer`: the rewards promotion while paying. `reward`: what the order earned, once paid.
+- `receipt`: the receipt as a CashToken, once paid (if chosen). `receiptPref`: the shopper's choice.
 
 [`examples/react/BchPay.tsx`](../examples/react/BchPay.tsx) renders all of it
 ([docs/payment-screen.md](payment-screen.md)).
@@ -86,7 +88,8 @@ can't guess. [`examples/server.mjs`](../examples/server.mjs) has them all;
 | `POST /api/orders/:id/build` `{ address, category, amount }` | `walletBuild(id, …)` |
 | `POST /api/orders/:id/submit` `{ hex }` | `walletSubmit(id, hex)` |
 | `POST /api/orders/:id/claim` `{ address }` | `claimReward(id, address)` |
-| `GET /bcmr/<category>.json` | `token.registry(category)`, with `Access-Control-Allow-Origin: *` ([docs/token.md](token.md)) |
+| `POST /api/orders/:id/receipt` `{ address }` | `claimReceipt(id, address)` |
+| `GET /bcmr/<category>.json` | `token.registry(category)` or `receipts.registry(category)`, with `Access-Control-Allow-Origin: *` ([docs/token.md](token.md)) |
 
 ## Storage
 
