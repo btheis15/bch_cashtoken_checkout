@@ -14,15 +14,16 @@
  *                   '[{"category":"<64 hex>","label":"Shop token","token":"ft","kind":"bch","value":0.01,"symbol":"SHOP"}]'
  *   HOT_WALLET_WIF  the hot wallet's key (npm run new-wallet): rewards, and minting your token
  *   REWARDS         the rewards promotion as JSON, e.g. '{"enabled":true,"category":"<64 hex>","label":"Shop Rewards","symbol":"SHOP","perBch":0.1,"tokens":1}'
- *   SITE_URL        your website (https://…), where wallets read the token's details (/bcmr/<category>.json)
+ *   SITE_URL        your website (https://…), where wallets read the token's and receipts' details (/bcmr/<category>.json)
+ *   SHOP_NAME       your shop's name (on receipts as CashTokens, and the registries)
  *   ADMIN_TOKEN     protects the /admin routes (Authorization: Bearer <token>)
  *   PORT            default 8080
  *
  * Routes for the payment screen (examples/react/api.ts calls them):
  *   POST /api/orders/:id/renew · /wallet {address} · /quote {category, amount} · /build {address, category, amount}
- *        /submit {hex} · /claim {address}
+ *        /submit {hex} · /claim {address} · /receipt {address}
  * For wallets: GET /bcmr/<category>.json
- * For you: GET|POST|PUT /admin/token, GET /admin/rewards, POST /admin/rewards/test {address, amount}
+ * For you: GET|POST|PUT /admin/token, GET|POST /admin/receipts, GET /admin/rewards, POST /admin/rewards/test {address, amount}
  *
  * In a real shop, the order's total comes from your own database (never from the browser), the order id
  * the browser uses is unguessable, and onPaid fulfils the order.
@@ -32,6 +33,7 @@ import { createBchChain } from "../src/bch.js";
 import { createBchCheckout } from "../src/checkout.js";
 import { createFileStore } from "../src/file-store.js";
 import { createHotWallet } from "../src/hot-wallet.js";
+import { createReceiptIssuer } from "../src/receipts.js";
 import { createTokenIssuer } from "../src/token.js";
 import { checkCoupons, checkRewards } from "../src/tokens.js";
 
@@ -40,6 +42,7 @@ const chain = createBchChain({ log: console.log });
 const store = createFileStore(env.DATA_FILE || "./data/bch.json");
 const wallet = env.HOT_WALLET_WIF ? createHotWallet({ wif: env.HOT_WALLET_WIF, chain }) : null;
 const token = wallet ? createTokenIssuer({ wallet, store, siteUrl: env.SITE_URL, registryName: env.SHOP_NAME || "Token registry" }) : null;
+const receipts = wallet ? createReceiptIssuer({ wallet, store, siteUrl: env.SITE_URL, shopName: env.SHOP_NAME || "Receipts" }) : null;
 
 const bch = createBchCheckout({
   xpub: env.XPUB,
@@ -47,7 +50,9 @@ const bch = createBchCheckout({
   chain,
   coupons: checkCoupons(JSON.parse(env.COUPONS || "[]")),
   rewards: wallet && env.REWARDS ? { wallet, settings: checkRewards(JSON.parse(env.REWARDS)) } : null,
-  onPaid: (p) => console.log(`[paid] order ${p.id}: ${p.receivedSats} sats (tx ${p.payTxs[0]})`),
+  receipts,
+  // Skip your receipt email when the shopper chose the CashToken alone and it's going straight to their wallet.
+  onPaid: (p) => console.log(`[paid] order ${p.id}: ${p.receivedSats} sats (tx ${p.payTxs[0]})${bch.receiptReplacesEmail(p) ? ", receipt as a CashToken (no email)" : ""}`),
   onNotice: (p, n) => console.log(`[${n.problem ? "look" : "note"}] order ${p.id}: ${n.message}`),
 });
 console.log(`Wallet's first receiving address: ${bch.firstAddress()} (check it matches your wallet)`);
@@ -80,16 +85,16 @@ http
 
       // What wallets show for the token: the exact file whose hash is on chain, readable from any site.
       if (req.method === "GET" && (m = path.match(/^\/bcmr\/([0-9a-f]{64})\.json$/))) {
-        const json = token ? await token.registry(m[1]) : null;
+        const json = (token ? await token.registry(m[1]) : null) ?? (receipts ? await receipts.registry(m[1]) : null);
         return json ? send(res, 200, json, { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300" }) : send(res, 404, { error: "Not found" });
       }
 
       if (req.method === "POST" && path === "/api/orders") {
         const b = await body(req);
-        return send(res, 200, await bch.start({ id: String(b.id), label: `Order ${b.id}`, subtotalCents: Number(b.subtotalCents), shippingCents: Number(b.shippingCents ?? 0), taxCents: Number(b.taxCents ?? 0), itemCount: b.itemCount ?? null }));
+        return send(res, 200, await bch.start({ id: String(b.id), label: `Order ${b.id}`, subtotalCents: Number(b.subtotalCents), shippingCents: Number(b.shippingCents ?? 0), taxCents: Number(b.taxCents ?? 0), itemCount: b.itemCount ?? null, number: Number.isInteger(b.number) ? b.number : null, items: Array.isArray(b.items) ? b.items : null, receipt: b.receipt }));
       }
       if (req.method === "GET" && (m = path.match(/^\/api\/orders\/([\w-]+)$/))) return send(res, 200, await bch.check(m[1]));
-      if (req.method === "POST" && (m = path.match(/^\/api\/orders\/([\w-]+)\/(renew|wallet|quote|build|submit|claim)$/))) {
+      if (req.method === "POST" && (m = path.match(/^\/api\/orders\/([\w-]+)\/(renew|wallet|quote|build|submit|claim|receipt)$/))) {
         const [, id, action] = m;
         const b = await body(req);
         if (action === "renew") return send(res, 200, await bch.renew(id));
@@ -98,6 +103,7 @@ http
         if (action === "build") return send(res, 200, await bch.walletBuild(id, b));
         if (action === "submit") return send(res, 200, await bch.walletSubmit(id, b.hex));
         if (action === "claim") return send(res, 200, await bch.claimReward(id, b.address));
+        if (action === "receipt") return send(res, 200, await bch.claimReceipt(id, b.address));
       }
 
       if (path.startsWith("/admin/")) {
@@ -107,6 +113,11 @@ http
           if (req.method === "GET") return send(res, 200, await token.status());
           if (req.method === "POST") return send(res, 200, await token.create(await body(req)));
           if (req.method === "PUT") return send(res, 200, await token.update(await body(req)));
+        }
+        if (path === "/admin/receipts") {
+          if (!receipts) return send(res, 409, { error: "Set HOT_WALLET_WIF first (npm run new-wallet)." });
+          if (req.method === "GET") return send(res, 200, await receipts.status());
+          if (req.method === "POST") return send(res, 200, await receipts.create(await body(req)));
         }
         if (req.method === "GET" && path === "/admin/rewards") return send(res, 200, await bch.rewardsStatus());
         if (req.method === "POST" && path === "/admin/rewards/test") return send(res, 200, await bch.testReward(await body(req)));

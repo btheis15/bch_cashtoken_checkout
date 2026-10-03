@@ -1281,6 +1281,374 @@
   font: inherit;
 }
 
+/* --- Receipts as CashTokens: the choice, the paper receipt, and the paper folding into a coin thrown into the wallet --- */
+
+.bchpay-receipt-choices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.bchpay-receipt-choice {
+  position: relative;
+  display: flex;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: var(--bchpay-radius);
+  border: 1px solid var(--bchpay-line);
+  background: var(--bchpay-bg);
+  padding: 0.9rem 0.5rem 0.8rem;
+  text-align: center;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.25s,
+    transform 0.15s;
+}
+.bchpay-receipt-choice:active {
+  transform: scale(0.98);
+}
+.bchpay-receipt-choice.on {
+  border-color: var(--bchpay-ink);
+  box-shadow: 0 6px 18px rgb(var(--bchpay-shadow) / 0.1);
+}
+.bchpay-receipt-choice:has(:focus-visible) {
+  outline: 2px solid var(--bchpay-accent);
+  outline-offset: 2px;
+}
+.bchpay-receipt-choice-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  background: var(--bchpay-soft);
+  color: var(--bchpay-link);
+  font-size: 1.05rem;
+}
+.bchpay-receipt-choice-mark.email::before,
+.bchpay-receipt-choice-mark.both::before {
+  content: "✉";
+}
+.bchpay-receipt-choice-mark.both::before {
+  translate: -0.35rem 0;
+}
+.bchpay-receipt-choice-mark.token,
+.bchpay-receipt-choice-mark.both::after {
+  background: var(--bchpay-coin);
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 0.35),
+    0 3px 8px color-mix(in srgb, var(--bchpay-accent) 35%, transparent);
+}
+.bchpay-receipt-choice-mark.both::after {
+  content: "";
+  position: absolute;
+  right: -0.45rem;
+  bottom: -0.2rem;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+}
+.bchpay-receipt-choice.on .bchpay-receipt-choice-mark {
+  animation: bchpay-bump 0.4s cubic-bezier(0.2, 1.3, 0.35, 1);
+}
+
+/* The coin: from the accent colors, wherever it's used (override --bchpay-coin for your own, e.g. a gold gradient). */
+:where(.bchpay) {
+  --bchpay-coin: radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--bchpay-accent-light) 55%, white), var(--bchpay-accent-light) 30%, var(--bchpay-accent) 62%, color-mix(in srgb, var(--bchpay-accent) 65%, black) 100%);
+}
+.bchpay-receipt-token {
+  position: relative;
+}
+.bchpay-receipt-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.bchpay-receipt-stage {
+  position: relative;
+  margin-top: 0.75rem;
+}
+.bchpay-receipt-fold {
+  transition-duration: 0.6s;
+}
+/* The receipt, printed: paper with a torn edge, rolling out of the printer. */
+.bchpay-receipt-paper {
+  position: relative;
+  margin: 0.25rem auto 0.9rem;
+  max-width: 26rem;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 27px, color-mix(in srgb, var(--bchpay-accent) 6%, transparent) 27px 28px),
+    var(--bchpay-bg);
+  filter: drop-shadow(0 12px 22px rgb(var(--bchpay-shadow) / 0.14));
+  transform-origin: 50% 0;
+  -webkit-mask:
+    radial-gradient(circle at 8px 100%, transparent 6px, #000 6.5px) -8px 100% / 16px 12px repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - 11px) no-repeat;
+  mask:
+    radial-gradient(circle at 8px 100%, transparent 6px, #000 6.5px) -8px 100% / 16px 12px repeat-x,
+    linear-gradient(#000 0 0) top / 100% calc(100% - 11px) no-repeat;
+  animation: bchpay-print 1s 0.15s cubic-bezier(0.25, 0.8, 0.3, 1) both;
+}
+.bchpay-receipt-paper-inner {
+  padding: 1.35rem 1.4rem 2rem;
+  border-top: 4px solid var(--bchpay-accent);
+}
+.bchpay-receipt-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.bchpay-receipt-head-mark {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+}
+.bchpay-receipt-head-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bchpay-receipt-lines {
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+}
+.bchpay-receipt-lines > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.3rem;
+  border-bottom: 1px dotted var(--bchpay-line);
+}
+.bchpay-receipt-lines dd {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.bchpay-receipt-lines > div.total {
+  margin-top: 0.35rem;
+  border-bottom: 0;
+  border-top: 1px dashed var(--bchpay-ink);
+  padding-top: 0.6rem;
+  font-family: var(--bchpay-font-display);
+  font-size: 1.2rem;
+}
+.bchpay-receipt-foot {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--bchpay-line);
+  text-align: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bchpay-muted);
+}
+/* 1. The paper folds down into a coin. */
+.bchpay-receipt-stage[data-phase="morph"] .bchpay-receipt-paper {
+  animation: bchpay-fold 0.76s cubic-bezier(0.55, 0, 0.6, 1) forwards;
+  transform-origin: 50% 40%;
+}
+.bchpay-receipt-stage[data-phase="morph"] .bchpay-receipt-paper-inner {
+  animation: bchpay-fade-out 0.3s ease-in forwards;
+}
+.bchpay-receipt-stage:is([data-phase="spin"], [data-phase="throw"], [data-phase="land"]) .bchpay-receipt-paper {
+  opacity: 0;
+  animation: none;
+}
+.bchpay-fly-x {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  z-index: 5;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.bchpay-fly-y {
+  position: absolute;
+  inset: 0;
+}
+.bchpay-coin {
+  position: absolute;
+  left: -3.5rem;
+  top: -3.5rem;
+  width: 7rem;
+  height: 7rem;
+  perspective: 600px;
+}
+.bchpay-coin-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bchpay-coin);
+  box-shadow:
+    inset 0 0 0 4px rgb(255 255 255 / 0.28),
+    inset 0 0 0 7px rgb(0 0 0 / 0.12),
+    inset 0 -6px 14px rgb(0 0 0 / 0.2),
+    0 14px 30px color-mix(in srgb, var(--bchpay-accent) 45%, transparent);
+}
+.bchpay-coin-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.7) 48%, transparent 62%);
+  transform: translateX(-120%);
+}
+.bchpay-coin-mark {
+  display: grid;
+  width: 62%;
+  height: 62%;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.7);
+}
+.bchpay-coin-mark img,
+.bchpay-coin-mark svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bchpay-receipt-stage[data-phase="morph"] .bchpay-fly-x:not(.ghost) .bchpay-coin {
+  animation: bchpay-coin-in 0.5s 0.32s cubic-bezier(0.2, 1.3, 0.35, 1) both;
+}
+.bchpay-fly-x.ghost {
+  opacity: 0;
+}
+.bchpay-fly-x.ghost .bchpay-coin-face {
+  filter: blur(1.5px) saturate(0.8);
+  box-shadow: none;
+}
+/* 2. It spins, catching the light. */
+.bchpay-receipt-stage[data-phase="spin"] .bchpay-fly-x:not(.ghost) .bchpay-coin-face {
+  animation: bchpay-coin-spin 0.62s cubic-bezier(0.4, 0, 0.3, 1);
+}
+.bchpay-receipt-stage[data-phase="spin"] .bchpay-fly-x:not(.ghost) .bchpay-coin-face::after {
+  animation: bchpay-sheen 0.6s 0.1s ease-in-out;
+}
+/* 3. It's thrown: an arc into the wallet, ghost coins streaking behind, sparks bursting off it. */
+.bchpay-receipt-stage:is([data-phase="throw"], [data-phase="land"]) .bchpay-fly-x {
+  animation: bchpay-fly-x 0.92s cubic-bezier(0.4, 0, 0.7, 0.6) forwards;
+}
+.bchpay-receipt-stage:is([data-phase="throw"], [data-phase="land"]) .bchpay-fly-y {
+  animation: bchpay-fly-y 0.92s linear forwards;
+}
+.bchpay-receipt-stage:is([data-phase="throw"], [data-phase="land"]) .bchpay-coin {
+  animation: bchpay-coin-shrink 0.92s cubic-bezier(0.5, 0, 0.8, 0.6) forwards;
+  animation-delay: inherit;
+}
+.bchpay-receipt-stage:is([data-phase="throw"], [data-phase="land"]) .bchpay-fly-x.ghost {
+  opacity: var(--ghost);
+}
+.bchpay-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 12px;
+  margin: -6px 0 0 -1.5px;
+  border-radius: 3px;
+  opacity: 0;
+  background: var(--bchpay-accent);
+}
+.bchpay-spark:nth-of-type(3n) {
+  background: var(--bchpay-accent-2);
+}
+.bchpay-spark:nth-of-type(3n + 1) {
+  background: var(--bchpay-ok);
+}
+.bchpay-receipt-stage:is([data-phase="throw"], [data-phase="land"]) .bchpay-spark {
+  animation: bchpay-spark 0.75s cubic-bezier(0.15, 0.7, 0.3, 1) both;
+}
+/* The wallet: slides in as the coin forms, then catches it. */
+.bchpay-receipt-wallet {
+  position: absolute;
+  right: 0.5rem;
+  top: 0.25rem;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  border-radius: 999px;
+  background: var(--bchpay-bg);
+  box-shadow:
+    0 0 0 2px var(--bchpay-accent-light),
+    0 8px 22px rgb(var(--bchpay-shadow) / 0.18);
+  animation: bchpay-wallet-in 0.55s 0.35s cubic-bezier(0.2, 1.2, 0.35, 1) both;
+}
+.bchpay-receipt-wallet-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 2px solid var(--bchpay-accent);
+  opacity: 0;
+}
+.bchpay-receipt-plus {
+  position: absolute;
+  top: 100%;
+  right: 50%;
+  translate: 50% 0.5rem;
+  white-space: nowrap;
+  border-radius: 999px;
+  background: var(--bchpay-ink);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--bchpay-accent-light);
+  opacity: 0;
+}
+/* 4. It lands: the wallet bumps, a ring ripples out, "+1". */
+.bchpay-receipt-stage[data-phase="land"] .bchpay-receipt-wallet {
+  animation: bchpay-catch 0.5s cubic-bezier(0.2, 1.4, 0.35, 1) both;
+}
+.bchpay-receipt-stage[data-phase="land"] .bchpay-receipt-wallet-ring {
+  animation: bchpay-wave 1s cubic-bezier(0.2, 0.6, 0.35, 1) both;
+}
+.bchpay-receipt-stage[data-phase="land"] .bchpay-receipt-plus {
+  animation: bchpay-plus 1.2s 0.1s cubic-bezier(0.2, 1, 0.35, 1) both;
+}
+/* In the wallet. */
+.bchpay-receipt-landed {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  border-radius: calc(var(--bchpay-radius) * 1.25);
+  border: 1px solid var(--bchpay-accent-light);
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--bchpay-accent-light) 24%, transparent), transparent 55%),
+    var(--bchpay-bg);
+  padding: 1rem 1.15rem;
+  animation: bchpay-card-in 0.6s var(--bchpay-ease) both;
+}
+.bchpay-mini-coin {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bchpay-coin);
+  box-shadow:
+    inset 0 0 0 3px rgb(255 255 255 / 0.3),
+    0 6px 16px color-mix(in srgb, var(--bchpay-accent) 35%, transparent);
+  animation: bchpay-logo-in 0.7s 0.15s cubic-bezier(0.2, 1.4, 0.35, 1) both;
+}
+.bchpay-mini-coin img {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
 /* --- Motion ------------------------------------------------------------------------------ */
 
 @keyframes bchpay-card-in {
@@ -1477,6 +1845,117 @@
   }
 }
 
+@keyframes bchpay-print {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-14px);
+  }
+  to {
+    clip-path: inset(0 0 -20px 0);
+    transform: none;
+  }
+}
+@keyframes bchpay-fold {
+  45% {
+    transform: scale(0.62, 0.5) rotate(-4deg);
+    border-radius: 30%;
+  }
+  to {
+    transform: scale(0.22) rotate(-14deg);
+    border-radius: 50%;
+    opacity: 0;
+  }
+}
+@keyframes bchpay-coin-in {
+  from {
+    opacity: 0;
+    transform: scale(1.7) rotate(25deg);
+    filter: blur(6px) brightness(1.4);
+  }
+}
+@keyframes bchpay-coin-spin {
+  from {
+    transform: rotateY(0);
+  }
+  to {
+    transform: rotateY(720deg);
+  }
+}
+@keyframes bchpay-fly-x {
+  to {
+    transform: translateX(var(--dx));
+  }
+}
+@keyframes bchpay-fly-y {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  42% {
+    transform: translateY(calc(min(0px, var(--dy)) - 90px));
+    animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
+  }
+  100% {
+    transform: translateY(var(--dy));
+  }
+}
+@keyframes bchpay-coin-shrink {
+  0% {
+    transform: scale(1) rotate(0);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.28) rotate(-540deg);
+    opacity: 0;
+  }
+}
+@keyframes bchpay-spark {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(-2.6rem);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(calc(-2.6rem - var(--d))) scaleY(0.4);
+  }
+}
+@keyframes bchpay-wallet-in {
+  from {
+    opacity: 0;
+    transform: translateX(26px) scale(0.6);
+  }
+}
+@keyframes bchpay-catch {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22) rotate(-6deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes bchpay-plus {
+  0% {
+    opacity: 0;
+    translate: 50% 0.9rem;
+  }
+  25% {
+    opacity: 1;
+    translate: 50% 0.3rem;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: 50% -0.4rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bchpay *,
   .bchpay *::before,
@@ -1493,6 +1972,8 @@
   .bchpay-thread,
   .bchpay-landed-wave,
   .bchpay-ping span:first-child,
+  .bchpay-fly-x.ghost,
+  .bchpay-spark,
   .bchpay-hold::after {
     display: none !important;
   }

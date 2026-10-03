@@ -1,4 +1,4 @@
-import type { BchQuote, BchReward, BchView, BchWalletInfo } from "./types";
+import type { BchQuote, BchReceiptToken, BchReward, BchView, BchWalletInfo } from "./types";
 
 /** What the payment screen asks your server. createBchApi() calls the routes in examples/server.mjs. */
 export type BchApi = {
@@ -13,6 +13,8 @@ export type BchApi = {
   submit(hex: string): Promise<{ ok: boolean; txid: string }>;
   /** A reward claimed to the shopper's wallet (claimReward). */
   claim(address: string): Promise<{ reward: BchReward | null }>;
+  /** A CashToken receipt claimed to the shopper's wallet (claimReceipt). */
+  receipt(address: string): Promise<{ receipt: BchReceiptToken | null }>;
 };
 
 /** The API for one order, at `${base}/${orderId}` (POST JSON; errors come back as { error }). */
@@ -32,5 +34,6 @@ export function createBchApi(orderId: string, base = "/api/orders"): BchApi {
     build: (input) => call("/build", input),
     submit: (hex) => call("/submit", { hex }),
     claim: (address) => call("/claim", { address }),
+    receipt: (address) => call("/receipt", { address }),
   };
 }

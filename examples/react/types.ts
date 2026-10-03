@@ -37,6 +37,9 @@ export type BchView = {
   reward?: BchReward | null;
   /** The rewards promotion running while it's being paid ("earn 1 SHOP for every 0.1 BCH"). */
   rewardOffer?: { label: string; symbol: string | null; decimals: number; perBch: number; tokens: number; maxPerOrder: number | null; endsOn: string | null } | null;
+  /** The receipt as a CashToken, once paid (if the shopper chose one), and how they chose to get it. */
+  receipt?: BchReceiptToken | null;
+  receiptPref?: "email" | "token" | "both";
   /** The coupon taken off this order (`bch`: what BCH-valued tokens took off, e.g. "0.03"). */
   applied: { label: string; discountCents: number; bch?: string } | null;
 };
@@ -95,3 +98,28 @@ export function rewardEstimate(offer: NonNullable<BchView["rewardOffer"]>, bch: 
   const amount = offer.decimals ? n.toFixed(offer.decimals).replace(/\.?0+$/, "") : String(n);
   return `${amount} ${offer.symbol ?? offer.label}`;
 }
+
+/**
+ * The receipt as a CashToken: `sending` (being minted and sent), `sent`, `claimable` (paid from a wallet that can't
+ * safely be sent tokens), or `expired` (not claimed in time). `receipt` is what it shows: public, so nothing personal.
+ */
+export type BchReceiptToken = {
+  name: string;
+  state: "sending" | "sent" | "claimable" | "expired";
+  to: string | null;
+  txUrl: string | null;
+  claimUntil: string | null;
+  receipt: {
+    shop: string;
+    order: string;
+    date: string;
+    items: { title: string; qty: number; cents: number }[];
+    subtotalCents: number;
+    discount: { label: string; cents: number; tokens?: string } | null;
+    shippingCents: number;
+    taxCents: number;
+    totalCents: number;
+    paidBch: string;
+    tx: string | null;
+  };
+};

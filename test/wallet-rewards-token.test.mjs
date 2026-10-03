@@ -10,6 +10,7 @@ import { createBchCheckout } from "../src/checkout.js";
 import { createFileStore } from "../src/file-store.js";
 import { createHotWallet, newWalletKey } from "../src/hot-wallet.js";
 import { createMemoryStore } from "../src/memory-store.js";
+import { createReceiptIssuer, receiptCommitment } from "../src/receipts.js";
 import { createTokenIssuer } from "../src/token.js";
 import { checkCoupons, checkRewards } from "../src/tokens.js";
 import { createFakeBchChain, createFakeBchPrices, createFakeWallet } from "./fakes.mjs";
@@ -442,6 +443,102 @@ describe("the shop's token: minted from your server, with what wallets show for 
     // And a reward after all that still leaves the newest identity output alone.
     await bch.testReward({ address: shopper.address, amount: 1 });
     assert.ok(!spends(txOf(chain.state.broadcasts.at(-1))).includes(`${txidOf(chain.state.broadcasts.at(-2))}:0`));
+  });
+});
+
+describe("receipts as CashTokens", () => {
+  const sha = (text) => createHash("sha256").update(text).digest("hex");
+  const txOf = (hex) => decodeTransaction(hexToBin(hex));
+  const txidOf = (hex) => Buffer.from(createHash("sha256").update(createHash("sha256").update(Buffer.from(hex, "hex")).digest()).digest()).reverse().toString("hex");
+  const spends = (tx) => tx.inputs.map((i) => `${binToHex(i.outpointTransactionHash)}:${i.outpointIndex}`);
+  const publication = (tx) => {
+    const b = tx.outputs.find((x) => x.lockingBytecode[0] === 0x6a).lockingBytecode;
+    const [len, at] = b[39] === 0x4c ? [b[40], 41] : [b[39], 40];
+    return { hash: binToHex(b.slice(7, 39)), uri: Buffer.from(b.slice(at, at + len)).toString() };
+  };
+
+  test("one of a kind per order: to the wallet that paid (replacing the email) or claimed; minted with the registry that lists it; never twice", async () => {
+    const chain = createFakeBchChain();
+    const store = createMemoryStore();
+    const hot = createHotWallet({ wif: newWalletKey(), chain });
+    const receipts = createReceiptIssuer({ wallet: hot, store, siteUrl: "https://shop.example", shopName: "Example Shop" });
+    const key = hot.info();
+    const RULES = { enabled: true, category: TOKEN, label: "Shop Rewards", symbol: "SHOP", perBch: 0.1, tokens: 1 };
+    const { bch, payment } = setup({ chain, store, receipts, rewards: { wallet: hot, settings: RULES } });
+
+    // The collection: an authbase, then the genesis with the identity output and the minting baton.
+    await assert.rejects(receipts.create({ name: "Example Receipt" }), (e) => e.status === 409 && /Send the hot wallet/.test(e.message));
+    chain.fund(key.address, { sats: 200_000 });
+    chain.fund(key.tokenAddress, { sats: 1000, token: { category: TOKEN, amount: 1000 } });
+    const made = await receipts.create({ name: "Example Receipt", description: "Your receipt from Example Shop.", icon: "https://shop.example/receipt.png" });
+    const category = made.collection.category;
+    const genesisHex = chain.state.broadcasts.at(-1);
+    const genesis = txOf(genesisHex);
+    assert.equal(spends(genesis)[0], `${category}:0`);
+    assert.equal(genesis.outputs[1].token.nft.capability, "minting", "the baton, kept by the hot wallet");
+    assert.equal(binToHex(genesis.outputs[1].lockingBytecode), key.lockingBytecode);
+    assert.equal(sha(await receipts.registry(category)), publication(genesis).hash);
+    await assert.rejects(receipts.create({}), (e) => e.status === 409);
+
+    // Chosen alone, paid from a connected wallet: straight back to it, and the email isn't needed.
+    const items = [{ title: "Linen Scarf", qty: 1, cents: 6000 }];
+    const v = await bch.start({ id: "c1", label: "Order 1042", number: 1042, items, receipt: "token", ...ORDER });
+    assert.equal(v.receiptPref, "token");
+    const payer = createFakeWallet(61);
+    chain.fund(payer.address, { sats: 30_000_000 });
+    const paidSeen = [];
+    const before = chain.state.broadcasts.length;
+    await bch.walletSubmit("c1", payer.sign((await bch.walletBuild("c1", { address: payer.address })).request).hex);
+    await sleep(80);
+    const p = await payment("c1");
+    assert.equal(p.receipt.state, "sent", JSON.stringify(p.events.map((e) => e.message)));
+    paidSeen.push(bch.receiptReplacesEmail(p));
+    assert.deepEqual(paidSeen, [true]);
+    const mintHex = chain.state.broadcasts.slice(before + 1).find((hex) => txOf(hex).outputs.some((o) => o.token?.nft?.capability === "none"));
+    const mint = txOf(mintHex);
+    assert.deepEqual(spends(mint).slice(0, 2), [`${txidOf(genesisHex)}:0`, `${txidOf(genesisHex)}:1`], "spends the identity output and the baton");
+    assert.equal(mint.outputs[1].token.nft.capability, "minting", "and gives the baton back");
+    assert.equal(binToHex(mint.outputs[2].lockingBytecode), payer.lockingBytecode, "the receipt, to the wallet that paid");
+    assert.equal(binToHex(mint.outputs[2].token.nft.commitment), receiptCommitment(1042, p.receipt.receipt));
+    assert.ok(mint.outputs[2].token.nft.commitment.length <= 40);
+    const reg = await receipts.registry(category);
+    assert.equal(sha(reg), publication(mint).hash, "published in the same transaction");
+    const shown = Object.values(JSON.parse(reg).identities[category])[0].token.nfts.parse.types[receiptCommitment(1042, p.receipt.receipt)];
+    assert.equal(shown.name, "Example Receipt #1042");
+    assert.match(shown.description, /Example Shop, Order 1042, .*1 × Linen Scarf \$60\.00/);
+    // Rewards from the same hot wallet never spend the identity output or the baton.
+    for (const hex of chain.state.broadcasts.filter((x) => x !== mintHex && x !== genesisHex)) {
+      const guarded = [0, 1].flatMap((n) => [`${txidOf(genesisHex)}:${n}`, `${txidOf(mintHex)}:${n}`]);
+      assert.ok(!spends(txOf(hex)).some((o) => guarded.includes(o)), "only receipts spend the identity output and the baton");
+    }
+    const view = await bch.view("c1");
+    assert.equal(view.receipt.state, "sent");
+    assert.ok(view.receipt.txUrl);
+
+    // Paid from any wallet: claimable; the reply is lost the first time, and the very same transaction goes again.
+    await bch.start({ id: "c2", label: "Order 1043", number: 1043, items, receipt: "both", ...ORDER });
+    chain.pay((await payment("c2")).address, { sats: (await payment("c2")).windows.at(-1).sats });
+    await sleep(40);
+    assert.equal((await bch.view("c2")).receipt.state, "claimable");
+    assert.equal(bch.receiptReplacesEmail(await payment("c2")), false, "it can't go straight there: send the email");
+    await assert.rejects(bch.claimReceipt("c2", "bitcoincash:nope"), (e) => e.status === 400);
+    const claimer = createFakeWallet(62);
+    chain.state.rejectBroadcast = "connection lost";
+    assert.equal((await bch.claimReceipt("c2", claimer.address)).receipt.state, "sending");
+    const planned = (await payment("c2")).receipt.txid;
+    chain.state.rejectBroadcast = null;
+    await bch.tick();
+    assert.equal((await payment("c2")).receipt.state, "sent");
+    assert.equal(txidOf(chain.state.broadcasts.at(-1)), planned, "the same transaction, never a second receipt");
+    assert.equal(binToHex(txOf(chain.state.broadcasts.at(-1)).outputs[2].lockingBytecode), claimer.lockingBytecode);
+    assert.equal((await receipts.status()).collection.issued, 2);
+
+    // Not chosen: no receipt token, the email as always.
+    await bch.start({ id: "c3", ...ORDER });
+    chain.pay((await payment("c3")).address, { sats: (await payment("c3")).windows.at(-1).sats });
+    await sleep(40);
+    assert.equal((await payment("c3")).receipt, null);
+    assert.equal(bch.receiptReplacesEmail(await payment("c3")), false);
   });
 });
 
