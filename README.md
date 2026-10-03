@@ -26,6 +26,11 @@ Fork it, copy what you need into your shop, and make the payment screen look lik
   wallets show is published with each one, with nothing personal on chain. On
   screen, the paper receipt folds into a coin that's thrown into their
   wallet. See [docs/receipts.md](docs/receipts.md).
+- **Commissions for sales partners.** Let other people sell for you: a sale
+  through a partner's link pays them their share of the items (never shipping
+  or tax) at the moment you're paid, in the shopper's own transaction from a
+  connected wallet, or from the hot wallet. Payout addresses are checked
+  against the US sanctions list. See [docs/commissions.md](docs/commissions.md).
 - **Mint your own token from your server.** The whole supply goes into a
   small hot wallet, along with what wallets show for the token: name, symbol,
   icon and description, published on chain as a BCMR registry. You can update
@@ -62,12 +67,14 @@ Fork it, copy what you need into your shop, and make the payment screen look lik
 | [`src/hot-wallet.js`](src/hot-wallet.js) | The small wallet whose key is on your server. It sends rewards and mints your token, one send at a time, and never spends the token's identity output. |
 | [`src/rewards.js`](src/rewards.js) | The rewards engine, used by `createBchCheckout({ rewards })`. |
 | [`src/receipts.js`](src/receipts.js) | Receipts as CashTokens: the collection (a minting baton in the hot wallet), and each receipt minted with the registry that lists it. |
+| [`src/commissions.js`](src/commissions.js) | Commissions for sales partners, used by `createBchCheckout({ commissions })`: the split in a connected wallet's payment, or a payout from the hot wallet. |
+| [`src/sanctions.js`](src/sanctions.js) | Screening addresses you pay against the US sanctions list (OFAC's SDN list, downloaded daily). |
 | [`src/token.js`](src/token.js) | Minting your token and updating what wallets show for it (CashTokens genesis, CHIP-BCMR authchain). |
 | [`src/memory-store.js`](src/memory-store.js), [`src/file-store.js`](src/file-store.js) | The storage interface, in memory or in a JSON file. Use your database in production; [docs/integration.md](docs/integration.md) has a SQL schema. |
 | [`examples/server.mjs`](examples/server.mjs) | A JSON API around all of it (Node's `http`, no framework): checkout, Connect wallet, rewards, the BCMR registry, and admin routes for minting. |
 | [`examples/react/`](examples/react) | The payment screen: `BchPay`, `PaySheet`, `BchRewardCard`, and `ReceiptToken` and `ReceiptChoice`, plus the WalletConnect connector, the API client and `bch-pay.css`. |
 | [`test/`](test) | Tests against a stand-in network that builds real BCH transactions (libauth). Wallet payments, rewards and minting are signed and run through the BCH virtual machine. |
-| [`docs/`](docs) | [Integration](docs/integration.md) · [Zero-conf](docs/zero-conf.md) · [Coupons](docs/coupons.md) · [Connect wallet](docs/wallet-connect.md) · [Rewards](docs/rewards.md) · [Receipts](docs/receipts.md) · [Your token](docs/token.md) · [Payment screen](docs/payment-screen.md) · [Wallets](docs/wallets.md) |
+| [`docs/`](docs) | [Integration](docs/integration.md) · [Zero-conf](docs/zero-conf.md) · [Coupons](docs/coupons.md) · [Connect wallet](docs/wallet-connect.md) · [Rewards](docs/rewards.md) · [Receipts](docs/receipts.md) · [Commissions](docs/commissions.md) · [Your token](docs/token.md) · [Payment screen](docs/payment-screen.md) · [Wallets](docs/wallets.md) |
 
 ## Try it
 

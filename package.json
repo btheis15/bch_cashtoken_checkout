@@ -1,7 +1,7 @@
 {
   "name": "bch-cashtoken-checkout",
   "version": "0.2.0",
-  "description": "Accept Bitcoin Cash on your own website, straight into your own wallet (zero-conf with double-spend proofs): CashTokens coupons, Connect wallet (WalletConnect), rewards in your own token, minting it with BCMR metadata, receipts as CashTokens, and an animated payment screen.",
+  "description": "Accept Bitcoin Cash on your own website, straight into your own wallet (zero-conf with double-spend proofs): CashTokens coupons, Connect wallet (WalletConnect), rewards in your own token, minting it with BCMR metadata, receipts as CashTokens, commissions for sales partners (paid in the same transaction), and an animated payment screen.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -12,7 +12,9 @@
     "./token": "./src/token.js",
     "./memory-store": "./src/memory-store.js",
     "./file-store": "./src/file-store.js",
-    "./receipts": "./src/receipts.js"
+    "./receipts": "./src/receipts.js",
+    "./commissions": "./src/commissions.js",
+    "./sanctions": "./src/sanctions.js"
   },
   "files": [
     "src",
@@ -42,6 +44,8 @@
     "rewards",
     "walletconnect",
     "bcmr",
+    "affiliates",
+    "commissions",
     "mint",
     "fulcrum",
     "electrum"

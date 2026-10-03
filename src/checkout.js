@@ -27,6 +27,9 @@
  *
  * Rewards (docs/rewards.md): claimReward(id, address), rewardsStatus(), testReward().
  *
+ * Commissions for sales partners (docs/commissions.md): start({ …, partner }) and the partner's share is paid
+ * when you're paid, in the shopper's own transaction (Connect wallet) or from the hot wallet; commission(id).
+ *
  * Zero-conf, as the BCH community expects: when enough has arrived it
  * listens `proofWaitMs` for a double-spend proof (the DSProof spec's
  * "wait T seconds"), then the payment counts (onPaid). With a proof, it's
@@ -54,6 +57,7 @@ import {
   walletAddress,
   walletHoldings,
 } from "./bch.js";
+import { checkPartner, createCommissionsEngine } from "./commissions.js";
 import { createReceiptsEngine } from "./receipts.js";
 import { connectedPayer, createRewardsEngine } from "./rewards.js";
 import { couponDiscount, satsPerToken, tokenScale, tokensFor, tokenText } from "./tokens.js";
@@ -73,6 +77,8 @@ export function createBchCheckout({
   rewards = null,
   /** Receipts as CashTokens: createReceiptIssuer(…) (docs/receipts.md). */
   receipts = null,
+  /** Commissions for sales partners: { wallet: createHotWallet(…), isBlocked?: (address) => bool, onCommission?: (payment, commission) => … } (docs/commissions.md). */
+  commissions = null,
   /** (payment) => fulfil the order. Called once. */
   onPaid = () => {},
   /** (payment, { kind, message, problem }) => things the merchant should know (problem: true means look before shipping). */
@@ -133,6 +139,7 @@ export function createBchCheckout({
   const hasProblem = (p, kind) => (p.problems ?? []).some((x) => x.kind === kind);
 
   const engine = rewards ? createRewardsEngine({ wallet: rewards.wallet, settings: rewards.settings ?? {}, chain, store, update, notice, now }) : null;
+  const partnersEngine = commissions ? createCommissionsEngine({ wallet: commissions.wallet, isBlocked: commissions.isBlocked, onCommission: commissions.onCommission, store, update, notice, now }) : null;
   const receiptsEngine = receipts ? createReceiptsEngine({ issuer: receipts, chain, store, update, notice, connectedPayer, earned: engine ? (p) => engine.estimate(p) : null, now }) : null;
 
   // --- Addresses ---------------------------------------------------------------------
@@ -217,18 +224,21 @@ export function createBchCheckout({
    * subtotalCents: the items (what coupons take a share of) · shippingCents · taxCents (lowered when a
    * coupon comes off, see onCoupon) · otherCents: anything else, or shipping and tax together.
    * itemCount and shippingLabel only label the order's lines in BCH. number (an integer), items ([{ title, option, qty, unitCents }])
-   * and receipt ("email" | "token" | "both", the shopper's choice) are for receipts as CashTokens. Returns the view.
+   * and receipt ("email" | "token" | "both", the shopper's choice) are for receipts as CashTokens. partner (an order through
+   * a sales partner's link, with commissions on): { id, address, ratePercent, maxCents?, owedCents? }. Returns the view.
    */
-  async function start({ id, label = null, subtotalCents, shippingCents = 0, taxCents = 0, otherCents = 0, itemCount = null, shippingLabel = null, number = null, items = null, receipt = "email" }) {
+  async function start({ id, label = null, subtotalCents, shippingCents = 0, taxCents = 0, otherCents = 0, itemCount = null, shippingLabel = null, number = null, items = null, receipt = "email", partner = null }) {
     const total = subtotalCents + shippingCents + taxCents + otherCents;
     if (!id || !(subtotalCents >= 0) || ![shippingCents, taxCents, otherCents].every((c) => Number.isInteger(c) && c >= 0) || !(total > 0)) throw new BchError("start() needs an id and a total above zero.");
     if (await store.getPayment(id)) throw new BchError(`Order ${id} already has a Bitcoin Cash payment.`, { status: 409 });
+    const checkedPartner = partnersEngine ? checkPartner(partner) : null;
     const a = await reserveAddress(id);
     const p = {
       id, label, status: "awaiting", createdAt: iso(), subtotalCents, shippingCents, taxCents, otherCents, totalCents: total, discountCents: 0, coupon: null, itemCount, shippingLabel,
       number: Number.isInteger(number) ? number : null, items: Array.isArray(items) ? items.slice(0, 100) : null, receiptPref: receiptsEngine && ["token", "both"].includes(receipt) ? receipt : "email",
       wallet: wallet.id, index: a.index, address: a.address, tokenAddress: a.tokenAddress, lockingBytecode: a.lockingBytecode, scripthash: a.scripthash,
       windows: [], txs: {}, receivedSats: 0, confirmations: 0, problems: [], events: [],
+      ...(checkedPartner ? { partner: checkedPartner } : {}),
     };
     try {
       await newPrice(p);
@@ -247,9 +257,15 @@ export function createBchCheckout({
       const p = await mustGet(id);
       const [history, tip] = await Promise.all([chain.history(p.scripthash), chain.tip()]);
       const txs = {};
+      // A sales partner's share paid in the same transaction (Connect wallet) counts toward the order, up to the share.
+      const split = p.walletPlan?.split ?? null;
+      let splitLeft = split?.sats ?? 0;
       for (const hx of history) {
-        const pay = readPayment(await chain.transaction(hx.txid), p.lockingBytecode);
-        txs[hx.txid] = { height: hx.height > 0 ? hx.height : 0, sats: pay.sats, tokens: pay.tokens, covered: pay.covered, seenAt: p.txs?.[hx.txid]?.seenAt ?? iso() };
+        const hex = await chain.transaction(hx.txid);
+        const pay = readPayment(hex, p.lockingBytecode);
+        const share = split && splitLeft > 0 ? Math.min(splitLeft, readPayment(hex, split.lockingBytecode).sats) : 0;
+        splitLeft -= share;
+        txs[hx.txid] = { height: hx.height > 0 ? hx.height : 0, sats: pay.sats + share, ...(share ? { split: share } : {}), tokens: pay.tokens, covered: pay.covered, seenAt: p.txs?.[hx.txid]?.seenAt ?? iso() };
       }
       // Seen before, now gone without a block: replaced (double-spent) or dropped by the network.
       const gone = Object.keys(p.txs ?? {}).filter((t) => !txs[t] && !(p.txs[t].height > 0));
@@ -313,6 +329,7 @@ export function createBchCheckout({
       await store.putPayment(p);
       Promise.resolve(onPaid(structuredClone(p))).catch(() => {});
       if (engine) setImmediate(() => engine.award(p.id).catch(() => {}));
+      if (partnersEngine && p.partner) setImmediate(() => partnersEngine.settle(p.id).catch(() => {}));
       if (receiptsEngine && p.receipt?.to) setImmediate(() => receiptsEngine.sendPending(p.id).catch(() => {}));
       return;
     }
@@ -615,7 +632,7 @@ export function createBchCheckout({
     } catch {
       throw new BchError("How many tokens to use?");
     }
-    if (a <= 0n) return { sats: s === "partial" ? Math.max(minSats, due(p) - p.receivedSats) : w.sats, tokens: null, breakdown: breakdown(p, p.coupon, w) };
+    if (a <= 0n) return { sats: s === "partial" ? Math.max(minSats, due(p) - p.receivedSats) : w.sats, tokens: null, discountCents: p.discountCents, breakdown: breakdown(p, p.coupon, w) };
     const offer = tokenOffers(p, s).find((x) => x.c.category === category);
     if (!offer) throw new BchError("Those tokens can't be used on this order.", { status: 409 });
     if (a > offer.useful) a = offer.useful;
@@ -624,7 +641,7 @@ export function createBchCheckout({
     const prev = p.coupon?.kind === "bch" ? p.coupon : null;
     const e = await couponEffect(p, offer.c, { amount: a.toString(), txid: null, vout: null }, prev);
     const hypo = { ...p, discountCents: e.discount, taxCents: e.taxCents, totalCents: e.totalCents };
-    const q = { sats: e.nextSats, tokens: { category, amount: a.toString(), text: tokenText(a, offer.c) }, breakdown: breakdown(hypo, e.coupon, { ...w, sats: e.nextSats, cents: hypo.totalCents }) };
+    const q = { sats: e.nextSats, discountCents: e.discount, tokens: { category, amount: a.toString(), text: tokenText(a, offer.c) }, breakdown: breakdown(hypo, e.coupon, { ...w, sats: e.nextSats, cents: hypo.totalCents }) };
     quotes.set(key, q);
     if (quotes.size > 500) quotes.delete(quotes.keys().next().value);
     return q;
@@ -642,15 +659,18 @@ export function createBchCheckout({
     const s = payable(p);
     const w = walletAddress(address);
     const q = await quote(p, s, String(category ?? ""), amount);
+    // Through a sales partner: their share goes to them in this same transaction, the rest to you.
+    const split = partnersEngine && s === "waiting" ? partnersEngine.splitFor(p, p.windows.at(-1).usdPerBch, q.discountCents) : null;
+    const shopSats = q.sats - (split?.sats ?? 0);
     let built;
     try {
-      built = buildWalletPayment({ wallet: w, utxos: await walletCoins(w), payTo: p.lockingBytecode, sats: q.sats, token: q.tokens, userPrompt: p.label ?? `Order ${p.id}` });
+      built = buildWalletPayment({ wallet: w, utxos: await walletCoins(w), payTo: p.lockingBytecode, sats: shopSats, token: q.tokens, also: split ? [split] : [], userPrompt: p.label ?? `Order ${p.id}` });
     } catch (e) {
       if (e instanceof BchError) e.status = 409;
       throw e;
     }
     const window = p.windows.at(-1);
-    await update(id, (x) => void (x.walletPlan = { address: w.address, sats: q.sats, category: q.tokens?.category ?? null, amount: q.tokens?.amount ?? "0", window: window.n, at: iso() }));
+    await update(id, (x) => void (x.walletPlan = { address: w.address, sats: shopSats, split, category: q.tokens?.category ?? null, amount: q.tokens?.amount ?? "0", window: window.n, at: iso() }));
     return { request: built.request, amountBch: bchText(q.sats), feeBch: bchText(built.fee), tokens: q.tokens, breakdown: q.breakdown, expiresAt: window.expiresAt };
   }
 
@@ -667,7 +687,8 @@ export function createBchCheckout({
     const plan = p0.walletPlan;
     if (!plan) throw new BchError("Start the payment again from your wallet.", { status: 409 });
     const tokensIn = paid.tokens.filter((t) => t.category === plan.category && !t.nft).reduce((n, t) => n + BigInt(t.amount), 0n);
-    if (paid.sats < plan.sats || (plan.category && tokensIn < BigInt(plan.amount))) throw new BchError("That transaction doesn't match this payment, so it wasn't sent. Please try again.", { status: 409 });
+    const toPartner = plan.split ? readPayment(String(hex), plan.split.lockingBytecode).sats : 0;
+    if (paid.sats < plan.sats || toPartner < (plan.split?.sats ?? 0) || (plan.category && tokensIn < BigInt(plan.amount))) throw new BchError("That transaction doesn't match this payment, so it wasn't sent. Please try again.", { status: 409 });
     try {
       await chain.broadcast(String(hex));
     } catch (e) {
@@ -696,6 +717,7 @@ export function createBchCheckout({
     for (const p of await store.listPayments({ since: iso(now() - reuseDays * 86_400_000) })) {
       // A reward missed (the server stopped just after a payment).
       if (engine && p.status === PAID && p.reward === undefined && now() - Date.parse(p.paidAt) < 3_600_000) await engine.award(p.id).catch(() => {});
+      if (partnersEngine && p.status === PAID && p.partner && p.commission === undefined) await partnersEngine.settle(p.id).catch(() => {});
       if (p.status === PAID && p.confirmedNoted) continue;
       if (p.status === "closed" && now() - Date.parse(p.checkedAt ?? 0) < 10 * 60_000) continue;
       try {
@@ -712,6 +734,8 @@ export function createBchCheckout({
       }
     }
     if (engine) await engine.sendPending().catch(() => {});
+    // Commissions that waited (a block for a risky payment, or the hot wallet was short).
+    if (partnersEngine) await partnersEngine.sendPending().catch(() => {});
     if (receiptsEngine) await receiptsEngine.sendPending().catch(() => {});
   }
 
@@ -753,6 +777,8 @@ export function createBchCheckout({
     /** True when the shopper chose the CashToken alone and it's going straight to their wallet: skip the receipt email (in onPaid). */
     receiptReplacesEmail: (payment) => payment?.receiptPref === "token" && Boolean(payment?.receipt?.to),
     payment: (id) => store.getPayment(id),
+    /** A sales partner's commission on the order (docs/commissions.md): the share, how it was paid, and yours; null without a partner. */
+    commission: async (id) => (partnersEngine ? partnersEngine.summary(await mustGet(id)) : null),
     /** The wallet's first receiving address, for the merchant to compare with their wallet. */
     firstAddress: () => addressAt(wallet, 0).address,
     unusedAhead: () => store.unusedAhead(wallet.id),
