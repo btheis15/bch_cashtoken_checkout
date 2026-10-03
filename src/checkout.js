@@ -133,7 +133,7 @@ export function createBchCheckout({
   const hasProblem = (p, kind) => (p.problems ?? []).some((x) => x.kind === kind);
 
   const engine = rewards ? createRewardsEngine({ wallet: rewards.wallet, settings: rewards.settings ?? {}, chain, store, update, notice, now }) : null;
-  const receiptsEngine = receipts ? createReceiptsEngine({ issuer: receipts, chain, store, update, notice, connectedPayer, now }) : null;
+  const receiptsEngine = receipts ? createReceiptsEngine({ issuer: receipts, chain, store, update, notice, connectedPayer, earned: engine ? (p) => engine.estimate(p) : null, now }) : null;
 
   // --- Addresses ---------------------------------------------------------------------
 
@@ -216,7 +216,7 @@ export function createBchCheckout({
    * A new order's payment, with the amounts from your database (never from the browser):
    * subtotalCents: the items (what coupons take a share of) · shippingCents · taxCents (lowered when a
    * coupon comes off, see onCoupon) · otherCents: anything else, or shipping and tax together.
-   * itemCount and shippingLabel only label the order's lines in BCH. number (an integer), items ([{ title, qty, cents }])
+   * itemCount and shippingLabel only label the order's lines in BCH. number (an integer), items ([{ title, option, qty, unitCents }])
    * and receipt ("email" | "token" | "both", the shopper's choice) are for receipts as CashTokens. Returns the view.
    */
   async function start({ id, label = null, subtotalCents, shippingCents = 0, taxCents = 0, otherCents = 0, itemCount = null, shippingLabel = null, number = null, items = null, receipt = "email" }) {

@@ -18,7 +18,11 @@ const shortAddress = (a: string) => {
   const body = a.replace(/^bitcoincash:/, "");
   return `${body.slice(0, 6)}…${body.slice(-6)}`;
 };
-const longDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+const paidWhen = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+const middle = (s: string) => {
+  const body = s.replace(/^bitcoincash:/, "");
+  return body.length > 16 ? `${body.slice(0, 8)}…${body.slice(-8)}` : body;
+};
 const played = (name: string, set = false) => {
   try {
     if (set) sessionStorage.setItem(`bchpay-receipt:${name}`, "1");
@@ -186,33 +190,46 @@ export function ReceiptToken({ api, initial, expected = false, brand, wc = null 
                   <span className="bchpay-receipt-head-mark">{mark(44)}</span>
                   <div className="bchpay-grow">
                     <p className="bchpay-title-sm">{r.shop}</p>
-                    <p className="bchpay-text">{longDate(r.date)}</p>
+                    <p className="bchpay-text">{paidWhen(r.paidAt)}</p>
                   </div>
                   <span className="bchpay-chip">{rt.name.replace(/ #.*$/, "")}</span>
                 </header>
                 <p className="bchpay-title">{r.order}</p>
                 <dl className="bchpay-receipt-lines">
                   {r.items.map((i) => (
-                    <div key={`${i.title}-${i.qty}`}>
+                    <div key={`${i.title}-${i.option}-${i.qty}`}>
                       <dt>
                         {i.qty} × {i.title}
+                        {i.option && <span className="bchpay-small">{i.option}</span>}
+                        {i.qty > 1 && <span className="bchpay-small">{money(i.unitCents)} each</span>}
                       </dt>
                       <dd>{money(i.cents)}</dd>
                     </div>
                   ))}
+                  <div>
+                    <dt>Subtotal</dt>
+                    <dd>{money(r.subtotalCents)}</dd>
+                  </div>
                   {r.discount && (
                     <div className="bchpay-ok-text">
                       <dt>
                         {r.discount.label}
-                        {r.discount.tokens ? ` (${r.discount.tokens})` : ""}
+                        {r.discount.tokens && (
+                          <span className="bchpay-small">
+                            {r.discount.tokens}
+                            {r.discount.bch ? ` · ${r.discount.bch} BCH` : ""}
+                          </span>
+                        )}
                       </dt>
                       <dd>−{money(r.discount.cents)}</dd>
                     </div>
                   )}
-                  {(r.shippingCents > 0 || r.items.length > 0) && (
+                  {r.shipping && (
                     <div>
-                      <dt>Shipping</dt>
-                      <dd>{r.shippingCents ? money(r.shippingCents) : "Free"}</dd>
+                      <dt>
+                        Shipping<span className="bchpay-small">{r.shipping.label}</span>
+                      </dt>
+                      <dd>{r.shipping.cents ? money(r.shipping.cents) : "Free"}</dd>
                     </div>
                   )}
                   {r.taxCents > 0 && (
@@ -221,14 +238,63 @@ export function ReceiptToken({ api, initial, expected = false, brand, wc = null 
                       <dd>{money(r.taxCents)}</dd>
                     </div>
                   )}
+                  {(r.otherCents ?? 0) > 0 && (
+                    <div>
+                      <dt>Other</dt>
+                      <dd>{money(r.otherCents!)}</dd>
+                    </div>
+                  )}
                   <div className="total">
                     <dt>Total</dt>
                     <dd>{money(r.totalCents)}</dd>
                   </div>
                 </dl>
-                <p className="bchpay-text bchpay-inline bchpay-gap-sm">
-                  <BchIcon size={13} /> Paid {r.paidBch} BCH
-                </p>
+                <dl className="bchpay-receipt-pay">
+                  <div>
+                    <dt className="bchpay-inline">
+                      <BchIcon size={12} /> Paid
+                    </dt>
+                    <dd>
+                      {r.payment.paidBch} BCH
+                      {r.payment.usdPerBch ? <span className="bchpay-small">at ${r.payment.usdPerBch.toFixed(2)} per BCH</span> : null}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>How</dt>
+                    <dd>{r.payment.method}</dd>
+                  </div>
+                  {r.payment.paidTo && (
+                    <div>
+                      <dt>To</dt>
+                      <dd className="bchpay-mono" title={r.payment.paidTo}>
+                        {middle(r.payment.paidTo)}
+                      </dd>
+                    </div>
+                  )}
+                  {r.payment.tx && (
+                    <div>
+                      <dt>Transaction</dt>
+                      <dd>
+                        <a href={`https://blockchair.com/bitcoin-cash/transaction/${r.payment.tx}`} target="_blank" rel="noopener noreferrer" className="bchpay-mono bchpay-underline">
+                          {middle(r.payment.tx)}
+                        </a>
+                      </dd>
+                    </div>
+                  )}
+                  {r.reward && (
+                    <div>
+                      <dt>Earned</dt>
+                      <dd>{r.reward}</dd>
+                    </div>
+                  )}
+                </dl>
+                {(r.returns || r.website || r.contact) && (
+                  <p className="bchpay-small bchpay-center-text bchpay-gap-sm">
+                    {r.returns && <span className="bchpay-block">{r.returns}</span>}
+                    {[r.website?.replace(/^https?:\/\//, ""), r.contact].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+                {r.note && <p className="bchpay-receipt-note">{r.note}</p>}
                 <p className="bchpay-receipt-foot">One of a kind · numbered by your order · yours to keep</p>
               </div>
             </div>

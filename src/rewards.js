@@ -156,6 +156,14 @@ export function createRewardsEngine({ wallet, settings, chain, store, update, no
     };
   }
 
+  /** What a paid payment earns under the promotion running when it was paid, as text ("1 SHOP"), or null. */
+  function estimate(p) {
+    const r = cfg();
+    if (!running(r, day(Date.parse(p.paidAt ?? iso())))) return null;
+    const { amount } = rewardFor(p.paidSats ?? p.receivedSats ?? 0, r);
+    return amount > 0 ? text({ ...r, amount: String(amount) }) : null;
+  }
+
   /** The promotion shown while paying ("you'll earn…"), when one is running. */
   function offer() {
     const r = cfg();
@@ -216,5 +224,5 @@ export function createRewardsEngine({ wallet, settings, chain, store, update, no
     });
   }
 
-  return { award, sendPending, summary, offer, claim, status, test, rewardFor };
+  return { award, sendPending, summary, offer, claim, status, test, rewardFor, estimate };
 }

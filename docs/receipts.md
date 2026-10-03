@@ -11,7 +11,8 @@ thrown into their wallet.
 ```js
 import { createReceiptIssuer } from "bch-cashtoken-checkout/receipts";
 
-const receipts = createReceiptIssuer({ wallet, store, siteUrl: "https://your.shop", shopName: "Example Shop" });
+const receipts = createReceiptIssuer({ wallet, store, siteUrl: "https://your.shop", shopName: "Example Shop",
+  look: { contact: "hello@your.shop", returns: "30-day returns: https://your.shop/returns", note: "Thank you!" } });
 await receipts.create({ name: "Example Receipt", description: "Your receipt from Example Shop.", icon: "https://your.shop/receipt.png" });  // once
 
 const bch = createBchCheckout({ xpub, store, chain, coupons, receipts,
@@ -19,7 +20,8 @@ const bch = createBchCheckout({ xpub, store, chain, coupons, receipts,
 });
 
 // At checkout, with the shopper's choice:
-await bch.start({ id, label: "Order 1042", number: 1042, items: [{ title: "Linen Scarf", qty: 1, cents: 6000 }], subtotalCents, shippingCents, taxCents, receipt: "token" });
+await bch.start({ id, label: "Order 1042", number: 1042, items: [{ title: "Linen Scarf", option: "Indigo", qty: 1, unitCents: 6000 }],
+  subtotalCents, shippingCents, shippingLabel: "Standard", taxCents, receipt: "token" });
 ```
 
 - `wallet` is the hot wallet (`createHotWallet`, the same one as rewards).
@@ -36,6 +38,36 @@ await bch.start({ id, label: "Order 1042", number: 1042, items: [{ title: "Linen
   [`ReceiptChoice`](../examples/react/ReceiptToken.tsx) is the three options.
 - `number` (an integer) goes into the token. `items` and the amounts are what
   the receipt shows.
+
+## What a receipt shows, and changing it
+
+Everything a shop receipt has:
+
+- the shop, the order and when it was paid
+- each item with its option, quantity, unit price and line total
+- the subtotal, the coupon or tokens used (with their BCH value), the shipping
+  method and cost, sales tax and the total
+- the payment: BCH paid, the rate, the address it was paid to, the
+  transaction, and how it was paid
+- what it earned (with rewards on), and your website, contact, returns line
+  and note
+
+Never anything about the shopper.
+
+For your admin screen:
+
+```js
+await receipts.update({ look: { note: "Thank you!", contact: "hello@your.shop", returns: "30-day returns", website: true, reward: true } });
+await receipts.update({ name: "Example Shop Receipt", description: "…", icon: "https://your.shop/receipt-2.png" });
+await receipts.status();   // { collection, look, … }
+```
+
+- **`look`** applies to the next receipts, with no transaction. Each receipt is
+  fixed (and hashed into its token) when it's made.
+- **A new name, description or icon** is published on chain. It spends the
+  identity output and keeps it, and it's recorded before it's sent, so a retry
+  sends the same transaction. Receipts already sent keep their own names.
+- The example server takes these as `PUT /admin/receipts`.
 
 ## Where it goes
 

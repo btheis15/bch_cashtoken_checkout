@@ -23,7 +23,7 @@
  *   POST /api/orders/:id/renew · /wallet {address} · /quote {category, amount} · /build {address, category, amount}
  *        /submit {hex} · /claim {address} · /receipt {address}
  * For wallets: GET /bcmr/<category>.json
- * For you: GET|POST|PUT /admin/token, GET|POST /admin/receipts, GET /admin/rewards, POST /admin/rewards/test {address, amount}
+ * For you: GET|POST|PUT /admin/token, GET|POST|PUT /admin/receipts, GET /admin/rewards, POST /admin/rewards/test {address, amount}
  *
  * In a real shop, the order's total comes from your own database (never from the browser), the order id
  * the browser uses is unguessable, and onPaid fulfils the order.
@@ -118,6 +118,7 @@ http
           if (!receipts) return send(res, 409, { error: "Set HOT_WALLET_WIF first (npm run new-wallet)." });
           if (req.method === "GET") return send(res, 200, await receipts.status());
           if (req.method === "POST") return send(res, 200, await receipts.create(await body(req)));
+          if (req.method === "PUT") return send(res, 200, await receipts.update(await body(req)));
         }
         if (req.method === "GET" && path === "/admin/rewards") return send(res, 200, await bch.rewardsStatus());
         if (req.method === "POST" && path === "/admin/rewards/test") return send(res, 200, await bch.testReward(await body(req)));

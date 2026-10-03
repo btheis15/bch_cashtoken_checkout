@@ -1438,6 +1438,36 @@
   font-family: var(--bchpay-font-display);
   font-size: 1.2rem;
 }
+.bchpay-receipt-pay {
+  margin-top: 0.75rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--bchpay-accent-light) 14%, transparent);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.88rem;
+}
+.bchpay-receipt-pay > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.2rem;
+}
+.bchpay-receipt-pay dt {
+  color: var(--bchpay-muted);
+}
+.bchpay-receipt-pay dd {
+  min-width: 0;
+  text-align: right;
+}
+.bchpay-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}
+.bchpay-receipt-note {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-family: var(--bchpay-font-display);
+  font-style: italic;
+}
 .bchpay-receipt-foot {
   margin-top: 1rem;
   padding-top: 0.75rem;

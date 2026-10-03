@@ -111,15 +111,20 @@ export type BchReceiptToken = {
   claimUntil: string | null;
   receipt: {
     shop: string;
+    website?: string;
+    contact?: string;
     order: string;
-    date: string;
-    items: { title: string; qty: number; cents: number }[];
+    paidAt: string;
+    items: { title: string; option: string | null; qty: number; unitCents: number; cents: number }[];
     subtotalCents: number;
-    discount: { label: string; cents: number; tokens?: string } | null;
-    shippingCents: number;
+    discount: { label: string; cents: number; tokens?: string; bch?: string } | null;
+    shipping: { label: string; cents: number } | null;
     taxCents: number;
+    otherCents?: number;
     totalCents: number;
-    paidBch: string;
-    tx: string | null;
+    payment: { method: string; paidBch: string; usdPerBch: number | null; paidTo: string | null; tx: string | null };
+    reward?: string;
+    returns?: string;
+    note?: string;
   };
 };
