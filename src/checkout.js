@@ -65,6 +65,8 @@ import { couponDiscount, satsPerToken, tokenScale, tokensFor, tokenText } from "
 export { BchError, parseXpub, addressAt } from "./bch.js";
 
 const PAID = "paid";
+// Node's setImmediate, or the browser's nearest equivalent (the engine runs in both).
+const soon = typeof setImmediate === "function" ? setImmediate : (fn) => setTimeout(fn, 0);
 
 export function createBchCheckout({
   xpub,
@@ -161,7 +163,7 @@ export function createBchCheckout({
       if (!history.length) return a;
       // Used already: by the wallet itself, or a late payment for the order that had it before.
       await store.setAddress(wallet.id, row.index, { state: "used", orderId: free?.previous?.orderId ?? null });
-      if (free?.previous?.orderId) setImmediate(() => check(free.previous.orderId).catch(() => {}));
+      if (free?.previous?.orderId) soon(() => check(free.previous.orderId).catch(() => {}));
     }
     throw new BchError("Couldn't find an unused address in the wallet.", { status: 503 });
   }
@@ -328,9 +330,9 @@ export function createBchCheckout({
         notice(p, "unprotected", "This payment came from a kind of wallet double-spend proofs don't cover (a script or multisig wallet). Wait for a block before shipping: this clears itself then.", { problem: true });
       await store.putPayment(p);
       Promise.resolve(onPaid(structuredClone(p))).catch(() => {});
-      if (engine) setImmediate(() => engine.award(p.id).catch(() => {}));
-      if (partnersEngine && p.partner) setImmediate(() => partnersEngine.settle(p.id).catch(() => {}));
-      if (receiptsEngine && p.receipt?.to) setImmediate(() => receiptsEngine.sendPending(p.id).catch(() => {}));
+      if (engine) soon(() => engine.award(p.id).catch(() => {}));
+      if (partnersEngine && p.partner) soon(() => partnersEngine.settle(p.id).catch(() => {}));
+      if (receiptsEngine && p.receipt?.to) soon(() => receiptsEngine.sendPending(p.id).catch(() => {}));
       return;
     }
 

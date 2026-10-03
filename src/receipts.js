@@ -18,8 +18,7 @@
  * recorded before it's sent, and a retry sends the very same transaction, so a receipt is never minted twice.
  * Rewards (and anything else using the hot wallet) never spend the identity output or the baton.
  */
-import { createHash } from "node:crypto";
-import { hexToBin } from "@bitauth/libauth";
+import { binToHex, hexToBin, sha256 } from "@bitauth/libauth";
 import { BchError, bcmrOutput, bchExplorerUrl, buildFromWallet, signWalletPayment, walletAddress } from "./bch.js";
 
 const IDENTITY_SATS = 1000;
@@ -31,9 +30,8 @@ const usd = (cents) => `$${(cents / 100).toFixed(2)}`;
 
 /** The NFT's commitment (37 bytes, hex): version 01, the order number, and the SHA-256 of the receipt. */
 export function receiptCommitment(number, receipt) {
-  const n = Buffer.alloc(4);
-  n.writeUInt32BE(Number.isInteger(number) && number >= 0 && number <= 0xffffffff ? number : 0);
-  return `01${n.toString("hex")}${createHash("sha256").update(JSON.stringify(receipt)).digest("hex")}`;
+  const n = (Number.isInteger(number) && number >= 0 && number <= 0xffffffff ? number : 0).toString(16).padStart(8, "0");
+  return `01${n}${binToHex(sha256.hash(new TextEncoder().encode(JSON.stringify(receipt))))}`;
 }
 
 /** The receipt as text: when, each item line, the discount, shipping and what was paid. */

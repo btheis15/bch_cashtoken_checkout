@@ -49,7 +49,6 @@ import {
   sha256,
   stringify,
 } from "@bitauth/libauth";
-import { randomBytes } from "node:crypto";
 import { ElectrumClient } from "@electrum-cash/network";
 
 export const SATS = 100_000_000;
@@ -500,7 +499,8 @@ export function readSignedPayment(hex, lockingBytecode) {
 
 /** A new private key for the rewards wallet, as WIF (the form wallets import). */
 export function newWalletKey() {
-  const key = generatePrivateKey(() => randomBytes(32));
+  // Web Crypto: in Node 22+ and every browser.
+  const key = generatePrivateKey(() => globalThis.crypto.getRandomValues(new Uint8Array(32)));
   return encodePrivateKeyWif(key, "mainnet");
 }
 
