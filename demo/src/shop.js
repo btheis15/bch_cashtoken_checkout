@@ -75,7 +75,7 @@ export async function createDemoShop() {
       txid,
       label,
       at: new Date().toISOString(),
-      outputs: tx.outputs.map((o) => ({ to: o.lockingBytecode[0] === 0x6a ? "Data (OP_RETURN: the registry's hash)" : nameOf(binToHex(o.lockingBytecode)), bch: bchText(Number(o.valueSatoshis)), token: o.token ? { amount: String(o.token.amount), nft: Boolean(o.token.nft), omt: binToHex(o.token.category) === OMT } : null })),
+      outputs: tx.outputs.map((o) => ({ to: o.lockingBytecode[0] === 0x6a ? "Data (OP_RETURN: the registry's hash)" : nameOf(binToHex(o.lockingBytecode)), bch: bchText(Number(o.valueSatoshis)), token: o.token ? { amount: String(o.token.amount), nft: Boolean(o.token.nft), baton: o.token.nft?.capability === "minting", omt: binToHex(o.token.category) === OMT } : null })),
     });
     changed();
   };
@@ -90,6 +90,7 @@ export async function createDemoShop() {
     if (tx.outputs.some((o) => o.token?.nft)) return "Hot wallet mints the receipt as a CashToken";
     if (to.includes("Sales partner (Priya)")) return "Hot wallet pays the partner's commission";
     if (to.includes("Shopper's wallet") && tx.outputs.some((o) => o.token)) return "Hot wallet sends the shopper their reward tokens";
+    if (tx.outputs.some((o) => o.token && binToHex(o.token.category) === OMT && nameOf(binToHex(o.lockingBytecode)) === "Elsewhere")) return "Hot wallet sends the claimed reward tokens";
     return "Hot wallet transaction";
   };
   const broadcast = chain.broadcast;

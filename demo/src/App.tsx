@@ -332,7 +332,7 @@ function BehindTheScenes({ shop, orderId }: { shop: Shop; orderId: string | null
                     <li key={i} className={o.to.startsWith("Sales partner") ? "to-partner" : o.to.startsWith("Shop's wallet") ? "to-shop" : ""}>
                       <span>{o.to}</span>
                       <span className="demo-mono">
-                        {o.token ? (o.token.nft ? "NFT receipt" : `${o.token.amount} ${o.token.omt ? "OMT" : "tokens"}`) : `${o.bch} BCH`}
+                        {o.token ? (o.token.baton ? "Receipt minting key (stays)" : o.token.nft ? "NFT receipt" : `${o.token.amount} ${o.token.omt ? "OMT" : "tokens"}`) : `${o.bch} BCH`}
                       </span>
                     </li>
                   ))}

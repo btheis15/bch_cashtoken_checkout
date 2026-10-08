@@ -1380,6 +1380,7 @@
 /* The receipt, printed: paper with a torn edge, rolling out of the printer. */
 .bchpay-receipt-paper {
   position: relative;
+  overflow-wrap: anywhere;
   margin: 0.25rem auto 0.9rem;
   max-width: 26rem;
   background:
