@@ -46,7 +46,10 @@ const FLIGHT = [0, 45, 90, 135];
 export function ReceiptToken({ api, initial, expected = false, brand, wc = null }: { api: BchApi; initial: BchReceiptToken | null; expected?: boolean; brand: BchBrand; wc?: BchWalletConnect | null }) {
   const money = brand.money ?? dollars;
   const [rt, setRt] = useState(initial);
-  const [phase, setPhase] = useState<Phase>(initial?.state === "sent" && played(initial.name) ? "inwallet" : "paper");
+  const [phase, setPhase] = useState<Phase>("paper");
+  // Already sent: whether it was seen going into the wallet (in this tab) is read after the page loads, as only the
+  // browser knows; the card stays hidden for that moment so the receipt doesn't fold away on screen.
+  const [settled, setSettled] = useState(initial?.state !== "sent");
   const [open, setOpen] = useState(false);
   const [uri, setUri] = useState<string | null>(null);
   const [paste, setPaste] = useState(false);
@@ -61,6 +64,17 @@ export function ReceiptToken({ api, initial, expected = false, brand, wc = null 
   const phone = useSyncExternalStore(subscribeTouch, () => touch().matches, () => false);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+  useEffect(() => {
+    if (settled) return;
+    const t = setTimeout(() => {
+      if (initial && played(initial.name)) setPhase("inwallet");
+      setSettled(true);
+    }, 0);
+    return () => clearTimeout(t);
+    // Once, after the page loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Folds the receipt into a coin and throws it into the wallet. */
   const throwIt = useCallback(() => {
@@ -112,10 +126,10 @@ export function ReceiptToken({ api, initial, expected = false, brand, wc = null 
 
   // In the wallet and not yet seen being thrown there (in this tab): a moment to see the receipt, then the throw.
   useEffect(() => {
-    if (rt?.state !== "sent" || phase !== "paper" || played(rt.name)) return;
+    if (!settled || rt?.state !== "sent" || phase !== "paper" || played(rt.name)) return;
     const t = setTimeout(throwIt, 1100);
     return () => clearTimeout(t);
-  }, [rt, phase, throwIt]);
+  }, [settled, rt, phase, throwIt]);
 
   async function claim(to: string) {
     setBusy(true);
@@ -158,7 +172,7 @@ export function ReceiptToken({ api, initial, expected = false, brand, wc = null 
   const mark = (size: number) => (brand.logo ? <img src={brand.logo} alt="" /> : <BchIcon size={size} />);
 
   return (
-    <section className={`bchpay bchpay-receipt-token ${flying ? "flying" : ""}`} aria-live="polite">
+    <section className={`bchpay bchpay-receipt-token ${flying ? "flying" : ""}`} style={settled ? undefined : { visibility: "hidden" }} aria-live="polite">
       <div className="bchpay-receipt-top">
         <p className="bchpay-eyebrow">Your receipt · a CashToken</p>
         {phase === "inwallet" && (
@@ -290,8 +304,8 @@ export function ReceiptToken({ api, initial, expected = false, brand, wc = null 
                 </dl>
                 {(r.returns || r.website || r.contact) && (
                   <p className="bchpay-small bchpay-center-text bchpay-gap-sm">
-                    {r.returns && <span className="bchpay-block">{r.returns}</span>}
-                    {[r.website?.replace(/^https?:\/\//, ""), r.contact].filter(Boolean).join(" · ")}
+                    {r.returns && <span className="bchpay-block">{r.returns.replace(/:\s*https?:\/\/\S+$/, "")}</span>}
+                    {[r.website, r.contact].filter(Boolean).map((x) => x!.replace(/^https?:\/\//, "")).join(" · ")}
                   </p>
                 )}
                 {r.note && <p className="bchpay-receipt-note">{r.note}</p>}
@@ -322,7 +336,7 @@ export function ReceiptToken({ api, initial, expected = false, brand, wc = null 
             {mark(36)}
           </span>
           <div className="bchpay-grow">
-            <p className="bchpay-title-sm">{rt.name} is in your wallet</p>
+            <p className="bchpay-title-sm">{rt.name.replace(/-/g, "\u2011")} is in your wallet</p>
             <p className="bchpay-text">
               {rt.to ? `${shortAddress(rt.to)} · ` : ""}
               {rt.txUrl && (

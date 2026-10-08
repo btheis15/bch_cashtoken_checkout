@@ -26,7 +26,7 @@ const jsonRes = (status, body) => new Response(JSON.stringify(body), { status, h
  * (BCH, or a CashToken) and tells the address's watchers, as Fulcrum would.
  */
 export function createFakeBchChain() {
-  const s = { tip: 900_000, txs: new Map(), byScript: new Map(), coins: new Map(), listeners: new Set(), watched: new Set(), proofs: new Set(), down: false, calls: [], broadcasts: [], rejectBroadcast: null };
+  const s = { tip: 900_000, txs: new Map(), byScript: new Map(), coins: new Map(), listeners: new Set(), watched: new Set(), proofs: new Set(), spent: new Map(), down: false, calls: [], broadcasts: [], rejectBroadcast: null };
   const scripthashOf = (lb) => binToHex(sha256.hash(lb).reverse());
   const up = (what) => {
     s.calls.push(what);
@@ -72,6 +72,8 @@ export function createFakeBchChain() {
     const t = s.txs.get(txid);
     s.byScript.set(t.sh, s.byScript.get(t.sh).filter((x) => x !== txid));
     s.txs.delete(txid);
+    // What it spent can be spent again.
+    for (const [k, by] of s.spent) if (by === txid) s.spent.delete(k);
     tell(t.sh);
   }
   /** Coins in a wallet (what listunspent shows for the address). */
@@ -88,6 +90,10 @@ export function createFakeBchChain() {
     if (typeof tx === "string") throw new Error(tx);
     const txid = binToHex(sha256.hash(sha256.hash(hexToBin(hexTx))).reverse());
     if (s.txs.has(txid)) throw new Error("txn-already-known");
+    // A coin is spent once: a second transaction spending it is refused, as a real node does.
+    const outpoints = tx.inputs.map((i) => `${binToHex(i.outpointTransactionHash)}:${i.outpointIndex}`);
+    if (outpoints.some((k) => s.spent.has(k))) throw new Error("bad-txns-inputs-missingorspent");
+    for (const k of outpoints) s.spent.set(k, txid);
     for (const i of tx.inputs) for (const [sh, list] of s.coins) s.coins.set(sh, list.filter((c) => !(c.txid === binToHex(i.outpointTransactionHash) && c.vout === i.outpointIndex)));
     const told = new Set();
     tx.outputs.forEach((o, vout) => {
@@ -96,7 +102,7 @@ export function createFakeBchChain() {
         s.byScript.set(sh, [...(s.byScript.get(sh) ?? []), txid]);
         told.add(sh);
       }
-      s.coins.set(sh, [...(s.coins.get(sh) ?? []), { txid, vout, sats: Number(o.valueSatoshis), height: 0, token: o.token ? { category: binToHex(o.token.category), amount: String(o.token.amount), nft: null } : null }]);
+      s.coins.set(sh, [...(s.coins.get(sh) ?? []), { txid, vout, sats: Number(o.valueSatoshis), height: 0, token: o.token ? { category: binToHex(o.token.category), amount: String(o.token.amount), nft: o.token.nft ? { capability: o.token.nft.capability, commitment: binToHex(o.token.nft.commitment) } : null } : null }]);
     });
     s.txs.set(txid, { hex: hexTx, height: 0, sh: [...told][0] });
     for (const sh of told) tell(sh);
