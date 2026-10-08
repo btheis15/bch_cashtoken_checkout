@@ -818,6 +818,9 @@
   transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
   animation: bchpay-up 0.5s cubic-bezier(0.2, 1, 0.3, 1) both;
 }
+.bchpay-sheet-wrap.closing {
+  pointer-events: none;
+}
 .bchpay-sheet-wrap.closing .bchpay-sheet {
   animation: bchpay-down 0.26s cubic-bezier(0.4, 0, 1, 1) both;
 }
