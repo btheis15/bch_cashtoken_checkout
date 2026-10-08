@@ -176,10 +176,18 @@ export function PaySheet({
     };
   }, [open, viaWallet, phase, info, amount, offer?.category, api, onPreview, bch.amountBch]);
 
+  // Closing plays the slide-out, then the sheet is gone: nothing stays over the page, even if it stays mounted.
+  const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
   function close() {
+    if (closeTimer.current) return;
     if (phase === "approving") abort.current?.abort();
     setClosing(true);
-    setTimeout(onClose, 260);
+    closeTimer.current = setTimeout(() => {
+      closeTimer.current = undefined;
+      setClosing(false);
+      onClose();
+    }, 260);
   }
 
   function choose(m: Method) {
@@ -538,7 +546,7 @@ export function PaySheet({
   );
 }
 
-/** Any wallet: tokens first if the shopper has some, then the payment by QR code or link (with the amount and address to copy). */
+/** Any wallet: tokens first if the shopper has some, then the payment by QR code or link (or its payment link to copy: the address with the amount in it). */
 function AnyWalletPane({ bch, brand, phone, showQr, setShowQr }: { bch: BchView; brand: BchBrand; phone: boolean; showQr: boolean; setShowQr: (v: boolean) => void }) {
   const [tokens, setTokens] = useState(false);
   const qr = !phone || showQr;
@@ -602,20 +610,18 @@ function AnyWalletPane({ bch, brand, phone, showQr, setShowQr }: { bch: BchView;
 
       <div className="bchpay-send-box">
         <div className="bchpay-copy-row">
-          <div>
+          <div className="bchpay-grow">
             <p className="bchpay-eyebrow">{bch.state === "partial" ? "Send the rest" : "Send exactly"}</p>
             <p className="bchpay-title">
               {bch.amountBch} <span className="bchpay-unit">BCH</span>
             </p>
-          </div>
-          <CopyButton value={bch.amountBch!} label="amount" />
-        </div>
-        <div className="bchpay-copy-row bchpay-divided">
-          <div className="bchpay-grow">
-            <p className="bchpay-eyebrow">To</p>
+            <p className="bchpay-eyebrow bchpay-gap-sm">To</p>
             <Address value={bch.address!} />
           </div>
-          <CopyButton value={bch.address!} label="address" />
+        </div>
+        <div className="bchpay-copy-row bchpay-divided">
+          <p className="bchpay-text">One link with the address and amount: paste it in any wallet.</p>
+          <CopyButton value={bch.uri!} label="payment link" />
         </div>
       </div>
     </section>
