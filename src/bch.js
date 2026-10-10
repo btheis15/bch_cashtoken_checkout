@@ -217,6 +217,13 @@ export function createBchChain({ servers = FULCRUM_SERVERS, makeClient = (host) 
   const listeners = new Set();
   const txCache = new Map();
 
+  /**
+   * The watched addresses again, on a new connection. In the background, each with its own time limit: a server
+   * that never answers one mustn't hold up a checkout or a payment check (they're also checked on a schedule).
+   */
+  function resubscribe(c) {
+    for (const sh of watched) within(c.subscribe("blockchain.scripthash.subscribe", sh), 15_000, "Watching an address").catch(() => {});
+  }
   async function open() {
     let lastError = null;
     let fallback = null;
@@ -244,7 +251,7 @@ export function createBchChain({ servers = FULCRUM_SERVERS, makeClient = (host) 
           if (client === c) client = null;
           c.disconnect(true).catch(() => {});
         });
-        for (const sh of watched) await c.subscribe("blockchain.scripthash.subscribe", sh).catch(() => {});
+        resubscribe(c);
         host = h;
         log(`[bch] connected to ${h}${hasProofs ? "" : " (without double-spend proofs)"}`);
         return c;
@@ -264,7 +271,7 @@ export function createBchChain({ servers = FULCRUM_SERVERS, makeClient = (host) 
         if (client === c) client = null;
         c.disconnect(true).catch(() => {});
       });
-      for (const sh of watched) await c.subscribe("blockchain.scripthash.subscribe", sh).catch(() => {});
+      resubscribe(c);
       host = h;
       proofs = false;
       log(`[bch] connected to ${h} (without double-spend proofs)`);
