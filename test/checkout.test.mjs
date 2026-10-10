@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { deriveHdPath, deriveHdPrivateNodeFromSeed, deriveHdPublicNode, encodeHdPrivateKey, encodeHdPublicKey, hexToBin } from "@bitauth/libauth";
 import { addressAt, createBchCheckout, parseXpub } from "../src/checkout.js";
-import { createBchPrices } from "../src/bch.js";
+import { createBchChain, createBchPrices } from "../src/bch.js";
 import { createMemoryStore } from "../src/memory-store.js";
 import { createFakeBchChain, createFakeBchPrices } from "./fakes.mjs";
 
@@ -223,4 +223,27 @@ describe("prices", () => {
     f.set(460, ["CoinGecko"]);
     await assert.rejects(createBchPrices({ fetchImpl: f.fetch }).usdPerBch(), /disagree/);
   });
+});
+
+test("a server that never answers a re-subscription doesn't hold up everything else (checkout, payments)", async () => {
+  const never = new Promise(() => {});
+  class Client {
+    on() {}
+    async connect() {}
+    async disconnect() {}
+    async request(method) {
+      if (method === "server.features") return { dsproof: true };
+      if (method === "blockchain.scripthash.get_history") return [];
+      return null;
+    }
+    subscribe() {
+      return never;
+    }
+  }
+  const chain = createBchChain({ servers: ["a.example"], makeClient: () => new Client() });
+  // An open order's address was being watched when the connection dropped.
+  chain.watch("11".repeat(32));
+  const answer = await Promise.race([chain.history("22".repeat(32)), new Promise((r) => setTimeout(() => r("stuck"), 1000))]);
+  assert.deepEqual(answer, [], "answered at once, not stuck behind the subscription");
+  await chain.close();
 });
